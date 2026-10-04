@@ -88,7 +88,8 @@ const state={
   message:"Creature Zero watches you.",
   bumpUntil:0,
   worldNow:0,
-  creature:null
+  creature:null,
+  isoHome:{x:-2,y:1,path:[],from:null,to:null,t:0,target:null}
 };
 
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
@@ -1061,6 +1062,131 @@ function goScene(target){
   syncMusicTheme(state.sceneTarget);
 }
 
+
+const ISO_HOME_CELLS=[];
+for(let y=-4;y<=4;y++)for(let x=-4;x<=4;x++){
+  const water=(x===1&&y===1)||(x===2&&y===1)||(x===1&&y===2)||(x===2&&y===2)||(x===0&&y===2)||(x===2&&y===0);
+  ISO_HOME_CELLS.push({x,y,k:water?"water":"grass"});
+}
+const ISO_HOME_OBJECTS=[
+  {type:"cottage",x:-3,y:-3,foot:[[0,0],[1,0],[0,1],[1,1]]},
+  {type:"store",x:2,y:-3,foot:[[0,0],[1,0],[0,1],[1,1]]},
+  {type:"tree",x:-4,y:0},{type:"tree",x:4,y:-1},{type:"tree",x:3,y:3},
+  {type:"rock",x:-2,y:3}
+];
+const ISO_GARDEN=[[-3,2],[-3,3],[-2,2],[-2,3]];
+const isoKey=(x,y)=>x+","+y;
+function isoHomeBlocked(x,y){
+  const cell=ISO_HOME_CELLS.find(c=>c.x===x&&c.y===y);
+  if(!cell||cell.k==="water")return true;
+  if(ISO_HOME_OBJECTS.some(o=>(o.foot||[[0,0]]).some(([dx,dy])=>o.x+dx===x&&o.y+dy===y)))return true;
+  return false;
+}
+function isoHomeRoute(sx,sy,tx,ty){
+  const start=isoKey(sx,sy),goal=isoKey(tx,ty),q=[[sx,sy]],came=new Map([[start,null]]);
+  for(let qi=0;qi<q.length;qi++){
+    const [x,y]=q[qi]; if(isoKey(x,y)===goal)break;
+    for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
+      const nx=x+dx,ny=y+dy,k=isoKey(nx,ny);
+      if(came.has(k)||isoHomeBlocked(nx,ny))continue;
+      came.set(k,isoKey(x,y));q.push([nx,ny]);
+    }
+  }
+  if(!came.has(goal))return [];
+  const out=[];let k=goal;
+  while(k!==start){const [x,y]=k.split(",").map(Number);out.push({x,y});k=came.get(k)}
+  return out.reverse();
+}
+function isoHomeStep(){
+  const M=state.isoHome;if(M.to||!M.path.length)return;
+  M.from={x:M.x,y:M.y};M.to=M.path.shift();M.t=0;
+}
+function moveIsoHomeTo(x,y){
+  if(isoHomeBlocked(x,y))return;
+  const M=state.isoHome,sx=Math.round(M.x),sy=Math.round(M.y);
+  M.path=isoHomeRoute(sx,sy,x,y);M.target={x,y};M.to=null;isoHomeStep();
+}
+function tickIsoHome(dt){
+  const M=state.isoHome;if(!M.to){isoHomeStep();return}
+  M.t+=dt*2.8;const t=clamp(M.t,0,1),e=smoothstep(t);
+  M.x=lerp(M.from.x,M.to.x,e);M.y=lerp(M.from.y,M.to.y,e);
+  if(t>=1){M.x=M.to.x;M.y=M.to.y;M.to=null;isoHomeStep()}
+}
+function isoHomeGeom(area){
+  const tw=clamp(Math.min(area.w*.155,area.h*.115),46,78),th=tw*.5;
+  return {tw,th,ox:area.x+area.w*.50,oy:area.y+area.h*.40};
+}
+function isoPoint(G,x,y,z=0){return{x:G.ox+(x-y)*G.tw*.5,y:G.oy+(x+y)*G.th*.5-z*G.th}}
+function isoDiamond(G,x,y,fill,stroke){
+  const p=isoPoint(G,x,y),a={x:p.x,y:p.y-G.th*.5},b={x:p.x+G.tw*.5,y:p.y},d={x:p.x,y:p.y+G.th*.5},e={x:p.x-G.tw*.5,y:p.y};
+  ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.lineTo(d.x,d.y);ctx.lineTo(e.x,e.y);ctx.closePath();
+  ctx.fillStyle=fill;ctx.fill();ctx.strokeStyle=stroke;ctx.lineWidth=1;ctx.stroke();
+}
+function isoShadow(x,y,rx,ry){ctx.beginPath();ctx.ellipse(x,y,rx,ry,0,0,Math.PI*2);ctx.fillStyle="#07100b66";ctx.fill()}
+function drawIsoTree(G,o){
+  const p=isoPoint(G,o.x,o.y);isoShadow(p.x,p.y+2,G.tw*.13,G.th*.09);
+  ctx.fillStyle="#594a31";ctx.fillRect(p.x-3,p.y-G.th*.95,6,G.th);
+  for(const [dx,dy,r] of [[0,-1.25,.30],[-.20,-1.03,.23],[.20,-1.02,.24]]){
+    ctx.beginPath();ctx.arc(p.x+dx*G.tw,p.y+dy*G.th,r*G.tw,0,Math.PI*2);ctx.fillStyle=dy<-1.1?"#63824c":"#496b3e";ctx.fill();
+  }
+}
+function drawIsoRock(G,o){
+  const p=isoPoint(G,o.x,o.y);isoShadow(p.x,p.y+2,G.tw*.13,G.th*.08);
+  ctx.beginPath();ctx.ellipse(p.x,p.y-G.th*.18,G.tw*.15,G.th*.24,-.12,0,Math.PI*2);ctx.fillStyle="#788078";ctx.fill();ctx.strokeStyle="#9aa49a";ctx.stroke();
+}
+function drawIsoBuilding(G,o,asset,label){
+  const pts=(o.foot||[[0,0]]).map(([dx,dy])=>isoPoint(G,o.x+dx,o.y+dy));
+  const cx=pts.reduce((s,p)=>s+p.x,0)/pts.length,cy=pts.reduce((s,p)=>s+p.y,0)/pts.length;
+  const r={x:cx-G.tw*.72,y:cy-G.th*2.6,w:G.tw*1.44,h:G.th*2.5};
+  if(!drawAssetContain(asset,r,{pad:0})){
+    fillRound({x:cx-G.tw*.48,y:cy-G.th*1.45,w:G.tw*.96,h:G.th*1.35},"#5c4a32",6);
+  }
+  text(label,cx,cy+G.th*.38,{size:10,weight:850,align:"center",color:"#dfe9d7"});
+}
+function drawIsoHome(area,now,interactive){
+  const G=isoHomeGeom(area),HH=state.home||{moist:0,crops:[0,0,0]};
+  fillRound(area,"#10251a",20);strokeRound(area,"#ffffff12",20,1);
+  ctx.save();rrPath(area.x,area.y,area.w,area.h,20);ctx.clip();
+  for(const cell of [...ISO_HOME_CELLS].sort((a,b)=>(a.x+a.y)-(b.x+b.y))){
+    const garden=ISO_GARDEN.some(([x,y])=>x===cell.x&&y===cell.y);
+    const fill=cell.k==="water"?"#244f55":garden?"#65482c":"#557044";
+    isoDiamond(G,cell.x,cell.y,fill,cell.k==="water"?"#477a72":"#78915b");
+    if(cell.k==="water"){
+      const p=isoPoint(G,cell.x,cell.y);
+      ctx.strokeStyle="#8bbda655";ctx.beginPath();ctx.moveTo(p.x-G.tw*.22,p.y);ctx.quadraticCurveTo(p.x,p.y+2,p.x+G.tw*.22,p.y);ctx.stroke();
+    }
+    if(garden){
+      const p=isoPoint(G,cell.x,cell.y),idx=ISO_GARDEN.findIndex(([x,y])=>x===cell.x&&y===cell.y)%3,crop=Number(HH.crops?.[idx])||0;
+      if(crop>0){ctx.fillStyle="#79b95d";ctx.beginPath();ctx.arc(p.x,p.y-G.th*.18,3+Math.min(3,crop),0,Math.PI*2);ctx.fill()}
+    }
+  }
+  const drawables=[...ISO_HOME_OBJECTS,{type:"bud",x:state.isoHome.x,y:state.isoHome.y}].sort((a,b)=>(a.x+a.y)-(b.x+b.y));
+  for(const o of drawables){
+    if(o.type==="tree")drawIsoTree(G,o);
+    else if(o.type==="rock")drawIsoRock(G,o);
+    else if(o.type==="cottage")drawIsoBuilding(G,o,ASSETS.cottage,"Cottage");
+    else if(o.type==="store")drawIsoBuilding(G,o,ASSETS.store,"Storehouse");
+    else{
+      const p=isoPoint(G,o.x,o.y),s=G.tw*.55;
+      drawCreature({x:p.x-s*.5,y:p.y-s*1.05,w:s,h:s},now,{labels:false});
+    }
+  }
+  const trail=isoPoint(G,4,-4);text("Wild Trail  ›",trail.x,trail.y-G.th*.4,{size:11,weight:900,align:"center",color:"#d7e7b2"});
+  const pond=isoPoint(G,1.3,1.3);text("Pond",pond.x,pond.y+G.th*.65,{size:10,weight:800,align:"center",color:"#9fc6b8"});
+  ctx.restore();
+
+  if(interactive){
+    for(const cell of ISO_HOME_CELLS){
+      const p=isoPoint(G,cell.x,cell.y);
+      registerHit("iso-"+cell.x+"-"+cell.y,{x:p.x-G.tw*.46,y:p.y-G.th*.42,w:G.tw*.92,h:G.th*.84},()=>moveIsoHomeTo(cell.x,cell.y));
+    }
+    registerHit("iso-cottage",{x:area.x,y:area.y,w:area.w*.34,h:area.h*.34},()=>selectHome("cottage"));
+    registerHit("iso-store",{x:area.x+area.w*.66,y:area.y,w:area.w*.34,h:area.h*.34},()=>selectHome("store"));
+  }
+  text("Garden",area.x+14,area.y+area.h-27,{size:11,weight:850,color:"#cbb58b"});
+  text("tap grass to walk",area.x+area.w-14,area.y+area.h-27,{size:10,weight:700,align:"right",color:"#809486"});
+}
+
 function homeLayout(w,h,pad,contentY,contentH,W){
   const area={x:pad,y:contentY,w:w-pad*2,h:contentH};
 
@@ -1674,6 +1800,7 @@ function draw(){
   const battleAlpha=B;
 
   if(state.W.scene>2.985&&state.sceneTarget===3)tickBattle(dtMs/1000);
+  if(Math.abs(state.W.scene-1)<.08&&state.sceneTarget===1)tickIsoHome(dtMs/1000);
 
   const u=Math.min(w,h)/100;
   const pad=clamp(3.5*u,12,22);
@@ -1785,29 +1912,11 @@ function draw(){
     ctx.save();
     ctx.globalAlpha=homeAlpha;
 
-    const cottage=mixRect(origin,home.cottage,H);
-    const trail=mixRect(origin,home.trail,H);
-    const store=mixRect(origin,home.store,H);
-    const garden=mixRect(origin,home.garden,H);
-
-    drawHomeCard(cottage,"Cottage",homeTimeText(),{fill:"#17271d",key:"cottage",asset:ASSETS.cottage});
-    drawHomeCard(trail,"Wild Trail","Mossglass Hollow",{fill:"#122a1d",key:"trail",asset:ASSETS.trail});
-    drawHomeCard(store,"Storehouse","Seeds "+(HH.seeds||0)+" · Resin "+((HH.inventory&&HH.inventory.resin)||0),{fill:"#17231c",key:"store",asset:ASSETS.store});
-    drawHomeCard(garden,"Garden","Moisture "+Math.round(HH.moist||0)+"%",{fill:"#13261a",key:"garden"});
-    drawGardenBeds(garden);
-
-    text("Creature Patch",creaturePanel.x+creaturePanel.w/2,creaturePanel.y+creaturePanel.h-10,{
-      size:fitText("Creature Patch",creaturePanel.w-24,{maxSize:12,minSize:9,weight:800}),
-      weight:800,align:"center",baseline:"bottom",color:"#839889"
-    });
+    const isoArea={x:pad,y:contentY,w:w-pad*2,h:contentH};
+    drawIsoHome(isoArea,now,Math.abs(state.W.scene-1)<.015&&state.sceneTarget===1);
     ctx.restore();
 
     if(Math.abs(state.W.scene-1)<.015&&state.sceneTarget===1){
-      registerHit("place-cottage",home.cottage,()=>selectHome("cottage"));
-      registerHit("place-trail",home.trail,()=>selectHome("trail"));
-      registerHit("place-store",home.store,()=>selectHome("store"));
-      registerHit("place-garden",home.garden,()=>selectHome("garden"));
-      registerHit("place-patch",home.patch,()=>selectHome("patch"));
       drawHomeDrawer(w,h,pad,u);
     }
   }
