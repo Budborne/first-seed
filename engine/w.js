@@ -23,6 +23,19 @@ function text(str,x,y,opt={}){
   return ctx.measureText(str).width;
 }
 
+function fitText(str,maxWidth,opt={}){
+  const maxSize=opt.maxSize||42;
+  const minSize=opt.minSize||10;
+  const weight=opt.weight||600;
+  const family=opt.family||"system-ui,-apple-system,sans-serif";
+
+  ctx.font=weight+" "+maxSize+"px "+family;
+  const measured=ctx.measureText(str).width;
+  if(measured<=maxWidth)return maxSize;
+
+  return clamp(maxSize*(maxWidth/measured),minSize,maxSize);
+}
+
 function solveViewport(){
   const w=Math.max(1,window.innerWidth);
   const h=Math.max(1,window.innerHeight);
@@ -96,9 +109,14 @@ function draw(){
 
   const u=Math.min(w,h)/100;
   const labelSize=clamp(3.1*u,11,16);
-  const heroSize=clamp(lerp(6.8,8.6,state.W.layout)*u,18,42);
+  const desiredHero=clamp(lerp(6.8,8.6,state.W.layout)*u,18,42);
+  const heroSize=fitText("GROW SOMETHING.",r.w-24,{
+    maxSize:desiredHero,
+    minSize:14,
+    weight:900
+  });
 
-  text("BUDBORNE · W CANVAS 002",16,16,{
+  text("BUDBORNE · W CANVAS 003",16,16,{
     size:labelSize,weight:700
   });
 
