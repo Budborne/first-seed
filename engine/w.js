@@ -19,6 +19,8 @@ const state={
   sceneTarget:0,
   lastFrame:performance.now(),
   home:null,
+  homeSelected:null,
+  homeMessage:"Tap somewhere in the clearing.",
   pointer:{x:0,y:0,down:false},
   buttons:[],
   pressed:null,
@@ -114,6 +116,10 @@ function applyHomeHours(H,hours){
   while(H.hour>=24){H.hour-=24;H.day=(H.day||1)+1}
   H.crops=(Array.isArray(H.crops)?H.crops:[0,0,0]).map(v=>v?Math.min(3,v+hours/6):0);
 }
+function saveHome(){
+  if(state.home)localStorage.setItem(HOME_KEY,JSON.stringify(state.home));
+}
+
 function syncHomeClock(){
   const now=Date.now();
   let H={};
@@ -266,6 +272,75 @@ function care(kind){
     state.bumpUntil=performance.now()+240;
   }
   saveCreature();
+}
+
+function advanceHome(hours){
+  if(!state.home||hours<=0)return;
+  applyHomeHours(state.home,hours);
+  state.home.lastRealMs=Date.now();
+  state.worldNow=homeHours(state.home);
+  passWorldTime(state.creature,hours);
+  state.creature.worldSeenHours=state.worldNow;
+  saveHome();
+  saveCreature();
+}
+
+function homeTimeText(){
+  const H=state.home||{day:1,hour:8};
+  let h=Math.floor(H.hour),m=Math.round((H.hour-h)*60);
+  if(m===60){h++;m=0}
+  const ap=h>=12?"PM":"AM";
+  const h12=h%12||12;
+  return "Day "+H.day+" · "+h12+":"+String(m).padStart(2,"0")+" "+ap;
+}
+
+function selectHome(name){
+  state.homeSelected=name;
+  const copy={
+    cottage:"A small place to sleep, plan, and keep the weather off your head.",
+    garden:"Three rough beds. Crops advance whenever local home time moves.",
+    patch:"Creature Zero lives on this same clock. No duplicate creature hiding here.",
+    store:"Seeds, expedition finds, tools, and crafting materials live here.",
+    trail:"Expeditions leave through here. The world keeps moving while you are gone."
+  };
+  state.homeMessage=copy[name]||"Home Clearing.";
+}
+
+function plantSeed(){
+  const H=state.home;
+  const i=H.crops.findIndex(v=>!v);
+  if(i<0){state.homeMessage="All three beds already have something growing.";return}
+  if(H.seeds<=0){state.homeMessage="The seed pouch is empty.";return}
+  H.crops[i]=1;
+  H.seeds--;
+  advanceHome(.25);
+  state.homeMessage="A seed settles into the bed. Fifteen local minutes pass.";
+}
+
+function waterBeds(){
+  state.home.moist=Math.min(100,state.home.moist+30);
+  advanceHome(.15);
+  state.homeMessage="The beds darken with water.";
+}
+
+function restHome(hours){
+  advanceHome(hours);
+  state.homeMessage=hours>=8?"You rest. The clearing changes around you.":"An hour slips quietly past.";
+}
+
+function watchPatch(){
+  advanceHome(.25);
+  state.homeMessage="You sit beside the patch. Creature Zero is not impressed. Fifteen local minutes pass anyway.";
+}
+
+function scoutTrail(){
+  advanceHome(2);
+  state.homeMessage="You follow the trail until the clearing disappears behind the trees, then turn back.";
+}
+
+function checkStores(){
+  const H=state.home,I=H.inventory||{};
+  state.homeMessage="Seeds: "+(H.seeds||0)+" · Amber Resin: "+(I.resin||0)+" · Dewstone: "+(I.dewstone||0)+".";
 }
 
 function hangout(){
@@ -436,6 +511,7 @@ function drawCreature(panel,now){
 
 function goScene(target){
   state.sceneTarget=target?1:0;
+  if(!target)state.homeSelected=null;
   state.pressed=null;
 }
 
@@ -468,14 +544,19 @@ function homeLayout(w,h,pad,contentY,contentH,W){
 }
 
 function drawHomeCard(r,title,subtitle,opt={}){
-  fillRound(r,opt.fill||"#10251a",18);
-  strokeRound(r,"#ffffff12",18,1);
+  const selected=state.homeSelected===opt.key;
+  fillRound(r,selected?"#193323":(opt.fill||"#10251a"),18);
+  strokeRound(r,selected?"#a9db70":"#ffffff12",18,selected?2:1);
   const size=fitText(title,r.w-20,{maxSize:14,minSize:10,weight:880});
   text(title,r.x+12,r.y+11,{size,weight:880,color:"#eef3df"});
   if(subtitle){
     const ss=fitText(subtitle,r.w-20,{maxSize:11,minSize:8,weight:650});
     text(subtitle,r.x+12,r.y+13+size,{size:ss,weight:650,color:"#8fa394"});
   }
+}
+
+function registerHit(id,r,action){
+  state.buttons.push({id,rect:{...r},action});
 }
 
 function drawGardenBeds(r){
@@ -497,6 +578,63 @@ function drawGardenBeds(r){
         ctx.fill();
       }
     }
+  }
+}
+
+function drawHomeDrawer(w,h,pad,u){
+  if(!state.homeSelected)return;
+
+  const H=state.home||{seeds:0,moist:0,crops:[0,0,0],inventory:{}};
+  const W=state.W.layout;
+  const dh=clamp(lerp(29,46,W)*u,170,250);
+  const dw=clamp(lerp(92,42,W)*u,280,w-pad*2);
+  const r={
+    x:W<.5?pad:w-pad-dw,
+    y:h-pad-dh,
+    w:W<.5?w-pad*2:dw,
+    h:dh
+  };
+
+  fillRound(r,"#08150fee",18);
+  strokeRound(r,"#ffffff22",18,1);
+
+  const inner={x:r.x+14,y:r.y+13,w:r.w-28,h:r.h-26};
+  const titles={cottage:"Cottage",garden:"Garden",patch:"Creature Patch",store:"Storehouse",trail:"Wild Trail"};
+  const title=titles[state.homeSelected]||"Home Clearing";
+  text(title,inner.x,inner.y,{size:clamp(3.3*u,12,17),weight:900,color:"#eef3df"});
+  text("×",inner.x+inner.w,inner.y-2,{size:18,weight:900,align:"right",color:"#839889"});
+  registerHit("drawer-close",{x:inner.x+inner.w-34,y:inner.y-8,w:38,h:36},()=>state.homeSelected=null);
+
+  const msgSize=clamp(2.55*u,9,12);
+  const msgLines=wrapText(state.homeMessage,inner.w,{size:msgSize,weight:650});
+  msgLines.slice(0,3).forEach((line,i)=>text(line,inner.x,inner.y+28+i*msgSize*1.25,{
+    size:msgSize,weight:650,color:"#9db09f"
+  }));
+
+  const statusY=r.y+r.h-78;
+  text("Moisture "+Math.round(H.moist||0)+"% · Seeds "+(H.seeds||0),inner.x,statusY-19,{
+    size:clamp(2.25*u,9,11),weight:700,color:"#718778"
+  });
+
+  const gap=8,bh=44,bw=(inner.w-gap)/2;
+  const left={x:inner.x,y:statusY,w:bw,h:bh};
+  const right={x:inner.x+bw+gap,y:statusY,w:bw,h:bh};
+
+  if(state.homeSelected==="cottage"){
+    drawButton("rest8",left,"Rest 8 hours",()=>restHome(8),{fill:"#496047",size:13});
+    drawButton("pass1",right,"Pass 1 hour",()=>restHome(1),{fill:"#355641",size:13});
+  }else if(state.homeSelected==="garden"){
+    drawButton("plant",left,"Plant a seed",plantSeed,{fill:"#496047",size:13});
+    drawButton("waterbeds",right,"Water beds",waterBeds,{fill:"#355641",size:13});
+  }else if(state.homeSelected==="patch"){
+    drawButton("visit",left,"Visit Creature",()=>goScene(0),{fill:"#496047",size:13});
+    drawButton("watch",right,"Watch quietly",watchPatch,{fill:"#355641",size:13});
+  }else if(state.homeSelected==="store"){
+    drawButton("stores",left,"Check stores",checkStores,{fill:"#355641",size:13});
+    drawButton("craft",right,"Crafting bench",()=>state.homeMessage="Nothing to craft yet. The bench exists mostly because future-you insisted.",{fill:"#24352b",size:12});
+  }else if(state.homeSelected==="trail"){
+    drawButton("expedition",left,"Enter Mossglass",()=>{window.location.href="./expedition.html"},{fill:"#496047",size:13});
+    drawButton("scout",right,"Scout nearby · 2h",scoutTrail,{fill:"#355641",size:12});
   }
 }
 
@@ -651,10 +789,10 @@ function draw(){
     const store=mixRect(origin,home.store,T);
     const garden=mixRect(origin,home.garden,T);
 
-    drawHomeCard(cottage,"Cottage","Day "+H.day+" · "+String(Math.floor(H.hour)).padStart(2,"0")+":00",{fill:"#17271d"});
-    drawHomeCard(trail,"Wild Trail","Mossglass Hollow",{fill:"#122a1d"});
-    drawHomeCard(store,"Storehouse","Seeds "+(H.seeds||0)+" · Resin "+((H.inventory&&H.inventory.resin)||0),{fill:"#17231c"});
-    drawHomeCard(garden,"Garden","Moisture "+Math.round(H.moist||0)+"%",{fill:"#13261a"});
+    drawHomeCard(cottage,"Cottage",homeTimeText(),{fill:"#17271d",key:"cottage"});
+    drawHomeCard(trail,"Wild Trail","Mossglass Hollow",{fill:"#122a1d",key:"trail"});
+    drawHomeCard(store,"Storehouse","Seeds "+(H.seeds||0)+" · Resin "+((H.inventory&&H.inventory.resin)||0),{fill:"#17231c",key:"store"});
+    drawHomeCard(garden,"Garden","Moisture "+Math.round(H.moist||0)+"%",{fill:"#13261a",key:"garden"});
     drawGardenBeds(garden);
 
     text("Creature Patch",creaturePanel.x+creaturePanel.w/2,creaturePanel.y+creaturePanel.h-10,{
@@ -666,6 +804,15 @@ function draw(){
     });
 
     ctx.restore();
+
+    if(state.W.scene>.985&&state.sceneTarget===1){
+      registerHit("place-cottage",home.cottage,()=>selectHome("cottage"));
+      registerHit("place-trail",home.trail,()=>selectHome("trail"));
+      registerHit("place-store",home.store,()=>selectHome("store"));
+      registerHit("place-garden",home.garden,()=>selectHome("garden"));
+      registerHit("place-patch",home.patch,()=>selectHome("patch"));
+      drawHomeDrawer(w,h,pad,u);
+    }
   }
 
   requestAnimationFrame(draw);
