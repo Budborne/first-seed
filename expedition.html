@@ -142,10 +142,10 @@ button,a.btn{min-height:52px;border:0;border-radius:15px;background:var(--leaf);
   function creatureStage(){
     try{
       const C=JSON.parse(localStorage.getItem(CREATURE_KEY)||"{}"),g=Number(C.growth)||0;
-      if(g>=300)return {name:"Budborn",emoji:"🌳",battle:true};
-      if(g>=140)return {name:"Youngling",emoji:"🌿",battle:false};
-      if(g>=60)return {name:"Shoot",emoji:"🌿",battle:false};
-      if(g>=20)return {name:"Sprout",emoji:"🌱",battle:false};
+      if(g>=120)return {name:"Budborn",emoji:"🌳",battle:true};
+      if(g>=65)return {name:"Youngling",emoji:"🌿",battle:false};
+      if(g>=30)return {name:"Shoot",emoji:"🌿",battle:false};
+      if(g>=12)return {name:"Sprout",emoji:"🌱",battle:false};
       return {name:"Seed",emoji:"🫘",battle:false};
     }catch(e){return {name:"Seed",emoji:"🫘",battle:false}}
   }
@@ -208,13 +208,18 @@ button,a.btn{min-height:52px;border:0;border-radius:15px;background:var(--leaf);
 
   function loadHome(){
     let H;try{H=JSON.parse(localStorage.getItem(HOME_KEY)||"{}")}catch(e){H={}}
-    H={hour:Number.isFinite(H.hour)?H.hour:8,day:H.day||1,seeds:Number.isFinite(H.seeds)?H.seeds:3,moist:Number.isFinite(H.moist)?H.moist:70,crops:Array.isArray(H.crops)?H.crops:[0,0,0],inventory:H.inventory||{wildSeed:0,resin:0,dewstone:0},...H};
+    H={hour:Number.isFinite(H.hour)?H.hour:8,day:H.day||1,seeds:Number.isFinite(H.seeds)?H.seeds:3,moist:Number.isFinite(H.moist)?H.moist:70,crops:Array.isArray(H.crops)?H.crops:[0,0,0],inventory:H.inventory||{wildSeed:0,resin:0,dewstone:0},lastRealMs:H.lastRealMs||Date.now(),...H};
     if(!H.inventory)H.inventory={wildSeed:0,resin:0,dewstone:0};return H;
   }
   function advanceHome(H,hours){H.hour+=hours;H.moist=Math.max(0,H.moist-hours*2.5);while(H.hour>=24){H.hour-=24;H.day++}H.crops=H.crops.map(v=>v?Math.min(3,v+hours/6):0)}
+  function syncRealHome(H){
+    const n=Date.now(),elapsed=Math.max(0,Math.min(720,(n-H.lastRealMs)/3600000));
+    if(elapsed>.01)advanceHome(H,elapsed);
+    H.lastRealMs=n;
+  }
   function commitHome(success,forced){
     const H=loadHome(),factor=success?1:(forced?.25:.4),passed=Math.max(.25,R.time*factor);
-    advanceHome(H,passed);Object.keys(R.loot).forEach(k=>H.inventory[k]=(H.inventory[k]||0)+R.loot[k]);
+    syncRealHome(H);advanceHome(H,passed);H.lastRealMs=Date.now();Object.keys(R.loot).forEach(k=>H.inventory[k]=(H.inventory[k]||0)+R.loot[k]);
     if(R.loot.wildSeed)H.seeds+=R.loot.wildSeed;
     H.lastExpedition={success,forced,trailTime:R.time,homeTime:passed,loot:R.loot,at:Date.now()};
     localStorage.setItem(HOME_KEY,JSON.stringify(H));sessionStorage.removeItem(RUN_KEY);return passed;
