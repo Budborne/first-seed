@@ -1046,10 +1046,19 @@ function drawCreature(panel,now,opt={}){
   }
 }
 
+function musicThemeForScene(scene){
+  return ["creature","home","expedition","battle"][clamp(Math.round(scene),0,3)];
+}
+
+function syncMusicTheme(scene=state.sceneTarget){
+  window.BudborneMusic?.setTheme(musicThemeForScene(scene));
+}
+
 function goScene(target){
   state.sceneTarget=clamp(Number(target)||0,0,3);
   if(state.sceneTarget!==1)state.homeSelected=null;
   state.pressed=null;
+  syncMusicTheme(state.sceneTarget);
 }
 
 function homeLayout(w,h,pad,contentY,contentH,W){
@@ -1706,7 +1715,21 @@ function draw(){
 
   const navW=clamp(24*u,88,118);
   const navH=clamp(8.4*u,31,39);
-  const navR={x:w-pad-navW,y:pad,w:navW,h:navH};
+  const musicGap=7;
+  const musicR={x:w-pad-navH,y:pad,w:navH,h:navH};
+  const navR={x:musicR.x-musicGap-navW,y:pad,w:navW,h:navH};
+
+  if(window.BudborneMusic){
+    const musicOn=window.BudborneMusic.isEnabled();
+    drawButton(
+      "music-toggle",
+      musicR,
+      musicOn?"♫":"♪",
+      ()=>window.BudborneMusic.toggle(),
+      {fill:musicOn?"#4c6745":"#26372d",hot:"#bce77f",size:16}
+    );
+  }
+
   if(state.W.scene<.015&&state.sceneTarget===0){
     drawButton("to-home",navR,"🏡 Home",()=>goScene(1),{fill:"#365442",size:13});
   }else if(Math.abs(state.W.scene-1)<.015&&state.sceneTarget===1){
@@ -1852,5 +1875,6 @@ if(initialParams.get("scene")==="expedition"){
   history.replaceState(null,"",clean);
 }
 
+syncMusicTheme(state.sceneTarget);
 solveViewport();
 requestAnimationFrame(draw);
