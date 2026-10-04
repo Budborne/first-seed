@@ -174,10 +174,14 @@ button,a.btn{min-height:52px;border:0;border-radius:15px;background:var(--leaf);
     if(!B||!R.battlePending)return null;
     sessionStorage.removeItem(BATTLE_RESULT_KEY);
     R.battlePending=false;R.battleTested=true;R.time+=(Number(B.trailTime)||0);
+    if(B.loot&&B.loot.resin)R.loot.resin+=B.loot.resin;
     if(B.victory){
       R.depth++;
-      if(B.loot&&B.loot.resin)R.loot.resin+=B.loot.resin;
       R.returnMessage={title:"Bramblejaw defeated",text:"Creature Zero won its first battle. The trail opens again, and Amber Resin has been added to the pack."};
+    }else if(B.mutual){
+      R.vigor=Math.max(0,R.vigor-1);
+      R.depth++;
+      R.returnMessage={title:"Both went down",text:"Creature Zero dropped Bramblejaw but collapsed to its thorns. You recover the Amber Resin, lose 1 expedition vigor, and the trail is technically clear."};
     }else{
       R.vigor=Math.max(0,R.vigor-1);
       R.returnMessage={title:"Bramblejaw held the trail",text:"Creature Zero was forced back. The loss costs 1 expedition vigor, but the run is still alive."};
