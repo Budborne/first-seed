@@ -19,7 +19,12 @@ radial-gradient(circle at 83% 27%,#2b5033 0 13%,transparent 14%),
 linear-gradient(#173522,#10291a)}
 .fighter{position:absolute;bottom:47px;width:135px;text-align:center;transition:transform .18s}.fighter.player{left:7%}.fighter.enemy{right:7%}.sprite{font-size:4rem;filter:drop-shadow(0 9px 6px #0007)}.name{margin-top:3px;font-weight:900;font-size:.82rem}.passive{margin-top:4px;font-size:.64rem;font-weight:850;color:#e4bc91}.hp{height:9px;border-radius:999px;background:#ffffff12;overflow:hidden;margin-top:6px}.hp>i{display:block;height:100%;background:var(--leaf);transition:width .25s}.enemy .hp>i{background:var(--enemy)}
 .hit{animation:hit .28s ease}.lunge{animation:lunge .28s ease}.enemy.lunge{animation:lungeEnemy .28s ease}
-@keyframes hit{50%{transform:translateX(-8px) rotate(-4deg);filter:brightness(1.5)}}@keyframes lunge{50%{transform:translateX(35px)}}@keyframes lungeEnemy{50%{transform:translateX(-35px)}}
+.enemy.heavy-bloom .sprite{animation:heavyBloom 1.05s ease-in-out infinite;filter:drop-shadow(0 0 10px #e5ca78) drop-shadow(0 10px 7px #0008)}
+.enemy.heavy-bloom:before{content:"✹";position:absolute;left:50%;top:-38px;transform:translateX(-50%);font-size:2rem;color:var(--gold);text-shadow:0 0 12px #e5ca78;animation:bloomPulse .7s ease-in-out infinite;z-index:-1}
+.marker.enemy.heavy-bloom{border-color:var(--gold);box-shadow:0 0 0 7px #e5ca7826,0 0 16px #e5ca7890}
+.dangerCue{position:absolute;left:50%;top:12px;transform:translateX(-50%);padding:7px 11px;border-radius:999px;background:#4e2d20e6;border:1px solid #e5ca7850;color:#f5e3a5;font-size:.7rem;font-weight:950;letter-spacing:.08em;opacity:0;transition:opacity .15s;pointer-events:none}
+.dangerCue.show{opacity:1;animation:bloomPulse .7s ease-in-out infinite}
+@keyframes hit{50%{transform:translateX(-8px) rotate(-4deg);filter:brightness(1.5)}}@keyframes lunge{50%{transform:translateX(35px)}}@keyframes lungeEnemy{50%{transform:translateX(-35px)}}@keyframes heavyBloom{50%{transform:scale(1.12) translateY(-3px)}}@keyframes bloomPulse{50%{transform:translateX(-50%) scale(1.08);filter:brightness(1.35)}}
 .timelineWrap{padding:3px 0}.timelineHead{display:flex;justify-content:space-between;color:var(--muted);font-size:.72rem;font-weight:800;margin-bottom:8px}.timeline{height:72px;position:relative;background:#07120d;border:1px solid var(--line);border-radius:16px;overflow:hidden}
 .timeline:before{content:"";position:absolute;left:62%;top:0;bottom:0;width:1px;background:var(--gold);box-shadow:0 0 12px #e5ca7877}.timeline:after{content:"EXECUTE";position:absolute;right:7px;top:4px;color:#ffffff42;font-size:.58rem;font-weight:900;letter-spacing:.08em}.cmdLabel{position:absolute;left:calc(62% - 27px);bottom:3px;color:var(--gold);font-size:.58rem;font-weight:900}
 .marker{position:absolute;width:35px;height:35px;border-radius:50%;display:grid;place-items:center;top:9px;transform:translateX(-50%);transition:left .08s linear;background:#325a3b;border:2px solid var(--leaf);box-shadow:0 4px 10px #0008;font-size:1.05rem}.marker.enemy{top:30px;background:#5b372c;border-color:var(--enemy);z-index:2}.marker.charging{box-shadow:0 0 0 5px #e5ca7822,0 4px 10px #0008;border-color:var(--gold)}
@@ -40,6 +45,7 @@ linear-gradient(#173522,#10291a)}
 
 <section class="card">
   <div class="arena">
+    <div class="dangerCue" id="dangerCue">HEAVY BLOOM</div>
     <div class="fighter player" id="playerFighter">
       <div class="sprite">🌳</div><div class="name">Creature Zero</div>
       <div class="hp"><i id="playerHpBar"></i></div>
@@ -113,6 +119,10 @@ linear-gradient(#173522,#10291a)}
   function render(){
     $("playerMarker").style.left=P.pos+"%";$("enemyMarker").style.left=E.pos+"%";
     $("playerMarker").classList.toggle("charging",P.mode==="charging");$("enemyMarker").classList.toggle("charging",E.mode==="charging");
+    const heavy=E.mode==="charging"&&E.action&&E.action.name==="Heavy Bloom";
+    $("enemyFighter").classList.toggle("heavy-bloom",heavy);
+    $("enemyMarker").classList.toggle("heavy-bloom",heavy);
+    $("dangerCue").classList.toggle("show",heavy);
     $("playerHpBar").style.width=pct(P.hp,P.maxHp)+"%";$("enemyHpBar").style.width=pct(E.hp,E.maxHp)+"%";
     $("playerStatus").textContent=P.mode==="command"?"Choose":P.mode==="charging"?(P.action.name+"…"):"Advancing";
     $("enemyStatus").textContent=E.mode==="charging"?(E.action.name+"…"):"Advancing";
@@ -129,7 +139,7 @@ linear-gradient(#173522,#10291a)}
     const heavy=Math.random()<.5;
     E.action=heavy?{name:"Heavy Bloom",cast:1.55,damage:7,interrupt:12}:{name:"Thorn Swipe",cast:.82,damage:4,interrupt:7};
     E.mode="charging";E.pos=COMMAND;
-    setLog("Bramblejaw prepares "+E.action.name+".",heavy?"Slow and nasty. There is time to interfere.":"A quicker attack. Less room to react.");
+    setLog("Bramblejaw prepares "+E.action.name+".",heavy?"Its body swells with stored force. Interrupt it, bind it, or brace before ACTION.":"A quicker attack. Less room to react.");
   }
   function choosePlayer(kind){
     if(P.mode!=="command"||ended)return;
