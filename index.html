@@ -20,7 +20,19 @@ h1{font-size:clamp(2rem,10vw,3.35rem);margin:.08em 0 .12em}
 .creature{position:absolute;bottom:42px;width:180px;height:170px;transform-origin:50% 100%;filter:drop-shadow(0 12px 10px #0005)}
 .creature.happy{animation:bop .42s ease}
 .creature.sleepy{filter:saturate(.65) drop-shadow(0 12px 10px #0005)}
+.creature.idle-wiggle{animation:wiggle .7s ease}
+.creature.idle-sway{animation:sway 1.2s ease-in-out}
+.creature.idle-peek{animation:peek .8s ease}
+.creature.idle-hop{animation:hop .62s ease}
+.creature.idle-settle{animation:settle .9s ease}
+.creature.blink .eye{transform:scaleY(.12)}
+.eye{transition:transform .12s ease}
 @keyframes bop{50%{transform:translateY(-5px) scale(1.035) rotate(-2deg)}}
+@keyframes wiggle{25%{transform:rotate(-4deg) translateY(-1px)}60%{transform:rotate(4deg) translateY(-2px)}}
+@keyframes sway{35%{transform:rotate(-3deg)}70%{transform:rotate(3deg)}}
+@keyframes peek{40%{transform:translateX(8px) rotate(2deg)}70%{transform:translateX(-3px) rotate(-1deg)}}
+@keyframes hop{45%{transform:translateY(-8px) scaleY(.96)}70%{transform:translateY(1px) scaleY(1.02)}}
+@keyframes settle{40%{transform:translateY(3px) scaleY(.96)}75%{transform:translateY(-1px) scaleY(1.01)}}
 .stem{position:absolute;left:88px;bottom:27px;width:8px;height:98px;background:linear-gradient(90deg,#397943,#78b75f);border-radius:9px;transform:rotate(4deg);transform-origin:bottom}
 .leaf{position:absolute;width:55px;height:28px;background:linear-gradient(135deg,#9cda61,#4d994b);border-radius:95% 10% 95% 12%;box-shadow:inset 0 -4px 8px #245b39}
 .leaf.a{left:89px;bottom:103px;transform:rotate(-34deg)}
@@ -247,10 +259,60 @@ button:active{transform:translateY(1px)}
     save();
   }
 
+  var idleClasses=["idle-wiggle","idle-sway","idle-peek","idle-hop","idle-settle"];
+  var idleTimer=null;
+
+  function clearIdle(){
+    idleClasses.forEach(function(k){creature.classList.remove(k)});
+    creature.classList.remove("blink");
+  }
+
   function bounce(){
+    clearIdle();
     creature.classList.remove("happy");
     void creature.offsetWidth;
     creature.classList.add("happy");
+  }
+
+  function idleBehavior(){
+    clearTimeout(idleTimer);
+    if(document.hidden){scheduleIdle();return}
+    var st=stageFor(S.growth);
+    if(S.dormant){scheduleIdle(9000);return}
+
+    clearIdle();
+    var choices, line=null;
+    if(st.key==="seed"){
+      choices=["idle-wiggle","idle-settle","idle-settle"];
+      if(Math.random()<.18)line="Something moved under the soil.";
+    }else if(st.key==="sprout"){
+      choices=["idle-sway","idle-wiggle","idle-sway"];
+      if(S.sun<35&&Math.random()<.35)line="The sprout searches slowly for better light.";
+      else if(Math.random()<.14)line="Two small leaves turn without being asked.";
+    }else if(st.key==="shoot"){
+      choices=["idle-sway","idle-peek","idle-wiggle"];
+      if(S.water<32&&Math.random()<.35)line="Its leaves droop toward the dampest patch of soil.";
+      else if(Math.random()<.14)line="It tests the air with a slow turn.";
+    }else{
+      choices=["idle-peek","idle-hop","idle-sway","idle-peek"];
+      if(S.water<32&&Math.random()<.4)line="Creature Zero keeps glancing toward the watering spot.";
+      else if(S.sun<30&&Math.random()<.4)line="Creature Zero edges toward the brightest part of the plot.";
+      else if(Math.random()<.12)line=["Creature Zero studies something beyond the edge of the plot.","A root-foot scratches thoughtfully at the soil.","Creature Zero takes one completely unnecessary little hop."][Math.floor(Math.random()*3)];
+    }
+
+    var cls=choices[Math.floor(Math.random()*choices.length)];
+    creature.classList.add(cls);
+    if(st.key!=="seed"&&Math.random()<.45){
+      setTimeout(function(){creature.classList.add("blink");setTimeout(function(){creature.classList.remove("blink")},150)},180+Math.random()*350);
+    }
+    if(line)msg.textContent=line;
+    setTimeout(clearIdle,1300);
+    scheduleIdle();
+  }
+
+  function scheduleIdle(ms){
+    clearTimeout(idleTimer);
+    idleTimer=setTimeout(idleBehavior,ms||Math.round(4200+Math.random()*5200));
   }
 
   function maybeStageMemory(oldKey){
@@ -311,6 +373,8 @@ button:active{transform:translateY(1px)}
   if(afterStage!==beforeStage)remember("Creature Zero changed while you were away.");
 
   render();
+  scheduleIdle(1800);
+  document.addEventListener("visibilitychange",function(){if(!document.hidden)scheduleIdle(900)});
 })();
 </script>
 </body>
