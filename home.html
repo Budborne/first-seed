@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#10281d">
+<title>Budborne: Home</title>
+<style>
+:root{color-scheme:dark;--bg:#0b1f17;--panel:#0b1711ee;--leaf:#a9db70;--cream:#f5efcf;--muted:#9eb39f;--line:#ffffff18;--soil:#654629;--wood:#7b5c3d;--water:#76b7c4}
+*{box-sizing:border-box}
+body{margin:0;min-height:100svh;background:radial-gradient(circle at 50% 0,#31533b,#10291e 45%,var(--bg));color:var(--cream);font:16px system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;padding:calc(16px + env(safe-area-inset-top)) 14px calc(28px + env(safe-area-inset-bottom))}
+main{width:min(620px,100%);margin:auto}.brand{text-align:center;letter-spacing:.28em;font-weight:900;font-size:.78rem;opacity:.72}
+.header{display:flex;justify-content:space-between;align-items:end;gap:12px;margin:10px 4px 12px}.header h1{margin:0;font-size:2rem}.clock{text-align:right;color:var(--muted);font-size:.76rem}.clock b{display:block;color:var(--cream);font-size:1rem}
+.scene{position:relative;height:min(68svh,610px);min-height:500px;border-radius:28px;overflow:hidden;border:1px solid var(--line);box-shadow:0 24px 70px #0009;background:
+radial-gradient(circle at 72% 18%,#f2d58222 0 3%,transparent 4%),
+linear-gradient(#48764b 0 52%,#3d6a43 52% 100%)}
+.scene:before{content:"";position:absolute;inset:0;background:
+radial-gradient(circle at 15% 15%,#204b2c 0 7%,transparent 8%),
+radial-gradient(circle at 88% 28%,#23502f 0 8%,transparent 9%),
+radial-gradient(circle at 8% 78%,#244c30 0 9%,transparent 10%),
+radial-gradient(circle at 92% 82%,#21482c 0 10%,transparent 11%);
+pointer-events:none}
+.path{position:absolute;left:42%;top:27%;width:22%;height:80%;background:#c7ac7655;transform:rotate(-7deg);border-radius:50% 50% 0 0;filter:blur(.2px)}
+.hot{position:absolute;border:0;background:none;color:inherit;padding:0;text-align:center;touch-action:manipulation}
+.hot .label{display:inline-block;margin-top:4px;padding:5px 8px;border-radius:999px;background:#07130ddd;border:1px solid var(--line);font-size:.7rem;font-weight:850;box-shadow:0 4px 12px #0005}
+.hot:active{transform:translateY(2px)}
+.house{left:7%;top:8%;width:38%;height:28%}.roof{position:absolute;left:10%;top:4%;width:80%;height:45%;background:#5f3d2e;clip-path:polygon(50% 0,100% 100%,0 100%);filter:drop-shadow(0 7px 6px #0004)}.walls{position:absolute;left:18%;top:38%;width:64%;height:50%;background:#aa8759;border-radius:4px 4px 8px 8px;box-shadow:inset 0 -10px #795a3b}.door{position:absolute;left:45%;top:54%;width:18%;height:34%;background:#4c3828;border-radius:5px 5px 0 0}.chimney{position:absolute;right:25%;top:5%;width:10%;height:23%;background:#765742}
+.garden{left:4%;bottom:8%;width:42%;height:29%}.beds{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;height:70%;transform:perspective(240px) rotateX(10deg)}.bed{position:relative;background:repeating-linear-gradient(90deg,#5f4228 0 7px,#745235 7px 14px);border:3px solid #382719;border-radius:10px;overflow:hidden}.sprout{position:absolute;left:50%;bottom:13px;transform:translateX(-50%);font-size:1.45rem}
+.patch{right:5%;bottom:9%;width:38%;height:28%}.patchground{position:absolute;inset:16% 5% 12%;background:#6b5034;border-radius:50%;box-shadow:inset 0 7px 15px #0003}.pet{position:absolute;left:50%;top:30%;transform:translateX(-50%);font-size:3.2rem;filter:drop-shadow(0 7px 4px #0005);animation:sway 3.5s ease-in-out infinite}@keyframes sway{50%{transform:translateX(-50%) rotate(4deg)}}
+.shed{right:4%;top:33%;width:26%;height:21%}.shedbox{position:absolute;left:10%;right:10%;top:20%;bottom:12%;background:#76573a;border-radius:6px;box-shadow:inset 0 -8px #4e3927}.shedroof{position:absolute;left:3%;right:3%;top:5%;height:32%;background:#3f362b;clip-path:polygon(50% 0,100% 100%,0 100%)}
+.gate{right:4%;top:5%;width:29%;height:22%}.posts:before,.posts:after{content:"";position:absolute;top:20%;width:10%;height:58%;background:#70553a;border-radius:4px}.posts:before{left:17%}.posts:after{right:17%}.beam{position:absolute;left:16%;right:16%;top:22%;height:8%;background:#70553a}.trail{position:absolute;left:42%;right:42%;top:62%;bottom:0;background:#b99d6744;clip-path:polygon(30% 0,70% 0,100% 100%,0 100%)}
+.drawer{margin-top:12px;background:var(--panel);border:1px solid var(--line);border-radius:22px;padding:17px;box-shadow:0 18px 45px #0006}.drawer h2{margin:0 0 4px;font-size:1.1rem}.drawer p{margin:0;color:var(--muted);line-height:1.45;font-size:.85rem}.actions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:13px}button.action,.linkbtn{min-height:48px;border:0;border-radius:14px;background:var(--leaf);color:#102014;font:inherit;font-weight:900;text-decoration:none;display:flex;align-items:center;justify-content:center}.secondary{background:#355641!important;color:var(--cream)!important}.muted{background:#ffffff0a!important;color:var(--muted)!important;border:1px solid var(--line)!important}
+.statusline{display:flex;justify-content:space-between;gap:8px;margin-top:10px;padding-top:10px;border-top:1px solid var(--line);font-size:.76rem;color:var(--muted)}.statusline b{color:var(--cream)}
+</style>
+</head>
+<body>
+<main>
+  <div class="brand">BUDBORNE</div>
+  <div class="header">
+    <div><h1>Home Clearing</h1></div>
+    <div class="clock"><span>Your local world</span><b id="clock">Day 1 · 8:00 AM</b></div>
+  </div>
+
+  <section class="scene" aria-label="Budborne home base">
+    <div class="path"></div><div class="trail"></div>
+
+    <button class="hot house" data-place="house" aria-label="Cottage">
+      <div class="chimney"></div><div class="roof"></div><div class="walls"></div><div class="door"></div>
+      <span class="label">Cottage</span>
+    </button>
+
+    <button class="hot gate" data-place="gate" aria-label="Wild trail">
+      <div class="posts"></div><div class="beam"></div><span class="label">Wild Trail</span>
+    </button>
+
+    <button class="hot shed" data-place="shed" aria-label="Storehouse">
+      <div class="shedroof"></div><div class="shedbox"></div><span class="label">Storehouse</span>
+    </button>
+
+    <button class="hot garden" data-place="garden" aria-label="Garden">
+      <div class="beds">
+        <div class="bed"><span class="sprout" id="crop0"></span></div>
+        <div class="bed"><span class="sprout" id="crop1"></span></div>
+        <div class="bed"><span class="sprout" id="crop2"></span></div>
+      </div>
+      <span class="label">Garden</span>
+    </button>
+
+    <button class="hot patch" data-place="creature" aria-label="Creature patch">
+      <div class="patchground"></div><div class="pet" id="pet">🌱</div><span class="label">Creature Patch</span>
+    </button>
+  </section>
+
+  <section class="drawer">
+    <h2 id="title">Home Clearing</h2>
+    <p id="desc">Tap somewhere in the clearing. This is the player's personal little world, not a globally synchronized server clock.</p>
+    <div class="actions" id="actions"></div>
+    <div class="statusline"><span>Garden moisture <b id="moist">70%</b></span><span>Seed pouch <b id="seeds">3</b></span></div>
+  </section>
+</main>
+
+<script>
+(function(){
+  const KEY="budborne:home-v1", CREATURE="budborne:first-seed";
+  let S;try{S=JSON.parse(localStorage.getItem(KEY)||"{}")}catch(e){S={}}
+  S={hour:Number.isFinite(S.hour)?S.hour:8,day:S.day||1,seeds:Number.isFinite(S.seeds)?S.seeds:3,moist:Number.isFinite(S.moist)?S.moist:70,crops:Array.isArray(S.crops)?S.crops:[0,0,0],...S};
+  const $=id=>document.getElementById(id);
+  const places={
+    house:{title:"Cottage",desc:"A small place to sleep, plan, and keep the weather off your head. Resting advances only your home timeline."},
+    garden:{title:"Garden",desc:"Three rough beds. Nothing fancy yet. Crops advance when home time advances instead of being simulated every second."},
+    creature:{title:"Creature Patch",desc:"Creature Zero's patch. Care still lives in the First Seed prototype for now."},
+    shed:{title:"Storehouse",desc:"Seeds, expedition finds, tools, and crafting materials will eventually live here."},
+    gate:{title:"Wild Trail",desc:"The edge of home. Expeditions will leave through here, return with discoveries, and advance home time by their duration."}
+  };
+  function save(){localStorage.setItem(KEY,JSON.stringify(S))}
+  function advance(hours){
+    S.hour+=hours;S.moist=Math.max(0,S.moist-hours*2.5);
+    while(S.hour>=24){S.hour-=24;S.day++}
+    S.crops=S.crops.map(v=>v?Math.min(3,v+hours/6):0);save();render(); 
+  }
+  function timeText(){
+    let h=Math.floor(S.hour),m=Math.round((S.hour-h)*60);if(m===60){h++;m=0}
+    let ap=h>=12?"PM":"AM",h12=h%12||12;return "Day "+S.day+" · "+h12+":"+String(m).padStart(2,"0")+" "+ap;
+  }
+  function cropEmoji(v){return !v?"":v<1.6?"🌱":v<2.7?"🌿":"🥕"}
+  function creatureEmoji(){
+    try{
+      const C=JSON.parse(localStorage.getItem(CREATURE)||"{}"),g=Number(C.growth)||0;
+      return g>=300?"🌳":g>=140?"🌿":g>=20?"🌱":"🫘";
+    }catch(e){return "🌱"}
+  }
+  function render(){
+    $("clock").textContent=timeText();$("moist").textContent=Math.round(S.moist)+"%";$("seeds").textContent=S.seeds;
+    S.crops.forEach((v,i)=>$("crop"+i).textContent=cropEmoji(v));$("pet").textContent=creatureEmoji();save();
+  }
+  function action(label,fn,cls=""){
+    const b=document.createElement("button");b.className="action "+cls;b.textContent=label;b.onclick=fn;return b;
+  }
+  function select(name){
+    const p=places[name];$("title").textContent=p.title;$("desc").textContent=p.desc;const box=$("actions");box.replaceChildren();
+    if(name==="house"){
+      box.append(action("Rest 8 hours",()=>{advance(8);select("house")}),action("Pass 1 hour",()=>{advance(1);select("house")},"secondary"));
+    }else if(name==="garden"){
+      box.append(action("Plant a seed",()=>{
+        const i=S.crops.findIndex(v=>!v);if(i<0){$("desc").textContent="All three beds already have something growing.";return}
+        if(S.seeds<=0){$("desc").textContent="The seed pouch is empty.";return}
+        S.crops[i]=1;S.seeds--;advance(.25);select("garden");
+      }),action("Water beds",()=>{S.moist=Math.min(100,S.moist+30);advance(.15);select("garden")},"secondary"));
+    }else if(name==="creature"){
+      const a=document.createElement("a");a.className="linkbtn";a.href="./";a.textContent="Visit Creature Zero";
+      box.append(a,action("Watch quietly",()=>{$("desc").textContent="You sit beside the patch. Creature Zero is not impressed. Time passes anyway.";advance(.25)},"secondary"));
+    }else if(name==="shed"){
+      box.append(action("Check seed pouch",()=>{$("desc").textContent="You currently have "+S.seeds+" sample seed"+(S.seeds===1?"":"s")+". Expedition loot will eventually stack here."},"secondary"),action("Crafting bench",()=>{$("desc").textContent="Nothing to craft yet. The bench exists mostly because future-you insisted."},"muted"));
+    }else if(name==="gate"){
+      box.append(action("Scout nearby · 2h",()=>{advance(2);$("desc").textContent="You follow the trail until the clearing disappears behind the trees, then turn back. Expedition mockup comes next."}),action("Expedition",()=>{$("desc").textContent="Not wired yet. Eventually success advances home by the expedition duration; failure advances it much less."},"muted"));
+    }
+  }
+  document.querySelectorAll("[data-place]").forEach(b=>b.addEventListener("click",()=>select(b.dataset.place)));
+  render();select("creature");
+})();
+</script>
+</body>
+</html>
