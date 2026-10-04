@@ -1362,10 +1362,10 @@ function drawHomeDrawer(w,h,pad,u){
 
 function expeditionLayout(w,h,pad,contentY,contentH,W){
   const area={x:pad,y:contentY,w:w-pad*2,h:contentH};
-  const portraitRoute={x:area.x,y:area.y,w:area.w,h:area.h*.39};
-  const portraitInfo={x:area.x,y:area.y+area.h*.41,w:area.w,h:area.h*.59};
-  const wideRoute={x:area.x,y:area.y,w:area.w*.48,h:area.h};
-  const wideInfo={x:area.x+area.w*.50,y:area.y,w:area.w*.50,h:area.h};
+  const portraitRoute={x:area.x,y:area.y,w:area.w,h:area.h*.46};
+  const portraitInfo={x:area.x,y:area.y+area.h*.48,w:area.w,h:area.h*.52};
+  const wideRoute={x:area.x,y:area.y,w:area.w*.54,h:area.h};
+  const wideInfo={x:area.x+area.w*.56,y:area.y,w:area.w*.44,h:area.h};
   const route=mixRect(portraitRoute,wideRoute,W);
   const info=mixRect(portraitInfo,wideInfo,W);
   const companionPortrait={x:route.x+12,y:route.y+route.h*.55,w:route.w*.34,h:route.h*.39};
@@ -1373,53 +1373,116 @@ function expeditionLayout(w,h,pad,contentY,contentH,W){
   return {route,info,companion:mixRect(companionPortrait,companionWide,W)};
 }
 
-function drawRouteNode(x,y,r,label,done,here){
-  ctx.beginPath();
-  ctx.arc(x,y,r,0,Math.PI*2);
-  ctx.fillStyle=done?"#4d7445":"#0b1711";
-  ctx.fill();
-  ctx.lineWidth=here?3:2;
-  ctx.strokeStyle=here?"#e0c77c":done?"#a9db70":"#ffffff2b";
-  ctx.stroke();
-  text(label,x,y,{size:Math.max(8,r*.75),weight:900,align:"center",baseline:"middle",color:"#eef3df"});
-  if(here){
-    ctx.beginPath();
-    ctx.arc(x,y,r+5,0,Math.PI*2);
-    ctx.strokeStyle="#e0c77c33";
-    ctx.lineWidth=5;
-    ctx.stroke();
-  }
-}
 
-function drawExpeditionRoute(r,R){
-  fillRound(r,"#10271a",20);
-  strokeRound(r,"#ffffff14",20,1);
+const EXP_PATH=[
+  {x:-3,y:3},{x:-2,y:2},{x:-2,y:1},{x:-1,y:0},{x:0,y:-1},{x:1,y:-2}
+];
+const EXP_CELLS=[];
+for(let y=-4;y<=4;y++)for(let x=-4;x<=4;x++){
+  const stream=(x===2&&y>=-1&&y<=3)||(x===1&&y===3)||(x===3&&y===-1);
+  EXP_CELLS.push({x,y,k:stream?"water":"moss"});
+}
+const EXP_OBJECTS=[
+  {type:"glassTree",x:-4,y:1},{type:"glassTree",x:-3,y:-1},{type:"glassTree",x:3,y:1},
+  {type:"glassTree",x:2,y:-3},{type:"glassTree",x:4,y:-2},{type:"glassTree",x:-1,y:-3},
+  {type:"rock",x:-1,y:2},{type:"rock",x:3,y:3},
+  {type:"thorn",x:1,y:0},{type:"thorn",x:0,y:-3}
+];
+function expeditionIsoGeom(r){
+  const tw=clamp(Math.min(r.w*.145,r.h*.19),38,72),th=tw*.5;
+  return {tw,th,ox:r.x+r.w*.49,oy:r.y+r.h*.53};
+}
+function expPathIndex(x,y){
+  return EXP_PATH.findIndex(p=>p.x===x&&p.y===y);
+}
+function drawGlassTree(G,o,now){
+  const p=isoPoint(G,o.x,o.y),s=G.tw;
+  isoShadow(p.x,p.y+2,s*.13,G.th*.08);
+  ctx.fillStyle="#4d4631";ctx.fillRect(p.x-3,p.y-G.th*1.05,6,G.th*1.1);
+  const pulse=.96+Math.sin(now/900+o.x*1.7+o.y)*.035;
+  ctx.save();ctx.translate(p.x,p.y-G.th*1.18);ctx.scale(pulse,pulse);
+  for(const [dx,dy,r] of [[0,-.18,.28],[-.22,.03,.22],[.22,.04,.23],[0,.16,.21]]){
+    ctx.beginPath();ctx.arc(dx*s,dy*s,r*s,0,Math.PI*2);
+    ctx.fillStyle=dy<0?"#486f55":"#375f4d";ctx.fill();
+    ctx.strokeStyle="#8db69a44";ctx.lineWidth=1;ctx.stroke();
+  }
+  ctx.restore();
+}
+function drawThornPatch(G,o){
+  const p=isoPoint(G,o.x,o.y);
+  ctx.save();ctx.strokeStyle="#7d9c54";ctx.lineWidth=Math.max(2,G.tw*.035);ctx.lineCap="round";
+  for(let i=-2;i<=2;i++){
+    ctx.beginPath();ctx.moveTo(p.x+i*4,p.y+3);ctx.quadraticCurveTo(p.x+i*6,p.y-G.th*.28,p.x+i*3,p.y-G.th*.47);ctx.stroke();
+  }
+  ctx.restore();
+}
+function drawMossglassWorld(r,R,now,interactive){
+  fillRound(r,"#0b2118",20);strokeRound(r,"#ffffff14",20,1);
+  const G=expeditionIsoGeom(r);
+  ctx.save();rrPath(r.x,r.y,r.w,r.h,20);ctx.clip();
+
+  // A dark, damp floor with the expedition path embedded in the terrain.
+  for(const cell of [...EXP_CELLS].sort((a,b)=>(a.x+a.y)-(b.x+b.y))){
+    const pi=expPathIndex(cell.x,cell.y);
+    const passed=pi>=0&&pi<=R.depth;
+    const fill=cell.k==="water"?"#183f45":pi>=0?(passed?"#516246":"#43523d"):"#334f3c";
+    const stroke=cell.k==="water"?"#397067":"#58705a";
+    isoDiamond(G,cell.x,cell.y,fill,stroke);
+    const p=isoPoint(G,cell.x,cell.y);
+    if(cell.k==="water"){
+      ctx.strokeStyle="#8cb9a044";ctx.lineWidth=1.4;
+      ctx.beginPath();ctx.moveTo(p.x-G.tw*.22,p.y);ctx.quadraticCurveTo(p.x,p.y+2,p.x+G.tw*.22,p.y);ctx.stroke();
+    }else if(pi<0&&((cell.x*7+cell.y*11)&3)===0){
+      ctx.fillStyle="#6c8c63aa";ctx.fillRect(p.x-1,p.y-G.th*.13,2,4);
+    }
+  }
+
+  // Route itself reads as geography instead of a diagram.
+  ctx.save();ctx.strokeStyle="#b69a6755";ctx.lineWidth=Math.max(5,G.tw*.10);ctx.lineCap="round";ctx.lineJoin="round";
+  ctx.beginPath();
+  EXP_PATH.forEach((q,i)=>{const p=isoPoint(G,q.x,q.y);if(i===0)ctx.moveTo(p.x,p.y);else ctx.lineTo(p.x,p.y)});
+  ctx.stroke();ctx.restore();
+
+  const drawables=[...EXP_OBJECTS].sort((a,b)=>(a.x+a.y)-(b.x+b.y));
+  for(const o of drawables){
+    if(o.type==="glassTree")drawGlassTree(G,o,now);
+    else if(o.type==="rock")drawIsoRock(G,o);
+    else drawThornPatch(G,o);
+  }
+
+  EXP_PATH.forEach((q,i)=>{
+    const p=isoPoint(G,q.x,q.y);
+    const done=i<R.depth,here=i===Math.min(R.depth,EXP_PATH.length-1),next=i===Math.min(R.depth+1,EXP_PATH.length-1)&&!R.encounter&&!R.finished;
+    ctx.beginPath();ctx.arc(p.x,p.y-G.th*.10,here?8:next?7:5,0,Math.PI*2);
+    ctx.fillStyle=here?"#e0c77c":done?"#91b56d":next?"#b9d77f":"#1a2e22";ctx.fill();
+    ctx.strokeStyle=here?"#fff0b0":next?"#dff6a9":"#ffffff33";ctx.lineWidth=here||next?2:1;ctx.stroke();
+    if(next){
+      ctx.beginPath();ctx.arc(p.x,p.y-G.th*.10,12+Math.sin(now/170)*2,0,Math.PI*2);
+      ctx.strokeStyle="#bce77f55";ctx.lineWidth=3;ctx.stroke();
+    }
+  });
+
+  const here=EXP_PATH[Math.min(R.depth,EXP_PATH.length-1)];
+  const hp=isoPoint(G,here.x,here.y);
+  const s=G.tw*.50;
+  drawCreature({x:hp.x-s*.5,y:hp.y-s*1.02,w:s,h:s},now,{labels:false});
+
+  const entrance=isoPoint(G,EXP_PATH[0].x,EXP_PATH[0].y);
+  text("Trailhead",entrance.x,entrance.y+G.th*.52,{size:9,weight:800,align:"center",color:"#9db09f"});
+  const deep=isoPoint(G,EXP_PATH[5].x,EXP_PATH[5].y);
+  text("deeper",deep.x,deep.y-G.th*.72,{size:9,weight:850,align:"center",color:"#9fb58f"});
+
+  ctx.restore();
 
   text("Mossglass Hollow",r.x+14,r.y+12,{
     size:fitText("Mossglass Hollow",r.w-28,{maxSize:15,minSize:10,weight:900}),
     weight:900,color:"#eef3df"
   });
 
-  const pts=[
-    [.58,.84],[.69,.69],[.53,.54],[.68,.39],[.50,.24],[.64,.11]
-  ].map(p=>({x:r.x+r.w*p[0],y:r.y+r.h*p[1]}));
-
-  ctx.beginPath();
-  ctx.moveTo(pts[0].x,pts[0].y);
-  for(let i=1;i<pts.length;i++)ctx.lineTo(pts[i].x,pts[i].y);
-  ctx.strokeStyle="#b99d6755";
-  ctx.lineWidth=Math.max(5,Math.min(r.w,r.h)*.035);
-  ctx.lineCap="round";
-  ctx.lineJoin="round";
-  ctx.stroke();
-
-  const nr=clamp(Math.min(r.w,r.h)*.045,10,17);
-  pts.forEach((p,i)=>drawRouteNode(
-    p.x,p.y,nr,
-    i===0?"⌂":i===5?"✦":String(i),
-    i<R.depth,
-    i===Math.min(R.depth,5)
-  ));
+  if(interactive&&!R.finished&&!R.encounter&&R.depth<5){
+    const next=EXP_PATH[Math.min(R.depth+1,5)],p=isoPoint(G,next.x,next.y);
+    registerHit("exp-world-next",{x:p.x-G.tw*.45,y:p.y-G.th*.75,w:G.tw*.9,h:G.th*1.25},beginExpeditionEncounter);
+  }
 }
 
 function drawMiniStat(r,label,value,size){
