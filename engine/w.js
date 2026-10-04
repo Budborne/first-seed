@@ -675,7 +675,8 @@ const BATTLE_EXECUTE=100;
 const BATTLE_ACTIONS={
   quick:{name:"Quick Strike",cast:.62,damage:5,contact:true},
   root:{name:"Root Bind",cast:1.18,damage:2,contact:false},
-  brace:{name:"Brace",cast:.38,damage:0,contact:false}
+  brace:{name:"Brace",cast:.38,damage:0,contact:false},
+  move:{name:"Move",cast:.55,damage:0,contact:false}
 };
 
 function battleDefaults(){
@@ -685,8 +686,8 @@ function battleDefaults(){
     result:null,
     logTitle:"Bramblejaw blocks the trail.",
     logText:"Creature Zero plants its root-feet. Neither side has committed yet.",
-    P:{name:"Creature Zero",hp:28,maxHp:28,pos:0,speed:18,mode:"moving",action:null,shield:0,slow:1,hitUntil:0,lungeUntil:0},
-    E:{name:"Bramblejaw",hp:24,maxHp:24,pos:9,speed:14,mode:"moving",action:null,shield:0,slow:1,hitUntil:0,lungeUntil:0}
+    P:{name:"Creature Zero",hp:28,maxHp:28,pos:0,speed:18,mode:"moving",action:null,shield:0,slow:1,hitUntil:0,lungeUntil:0,x:-.58,y:.20,moveFrom:null,moveTo:null},
+    E:{name:"Bramblejaw",hp:24,maxHp:24,pos:9,speed:14,mode:"moving",action:null,shield:0,slow:1,hitUntil:0,lungeUntil:0,x:.54,y:-.16,moveFrom:null,moveTo:null}
   };
 }
 
@@ -713,6 +714,14 @@ function battleEnemyChoose(){
   B.E.action=heavy
     ?{name:"Heavy Bloom",cast:1.55,damage:7,interrupt:12}
     :{name:"Thorn Swipe",cast:.82,damage:4,interrupt:7};
+  if(heavy){
+    B.E.moveFrom=null;B.E.moveTo=null;
+  }else{
+    const to=battleApproachPoint(B.E,B.P,.27);
+    const d=battleDist(B.E,to);
+    B.E.action.cast=.56+d*.48;
+    startActorMove(B.E,to);
+  }
   B.E.mode="charging";
   B.E.pos=BATTLE_COMMAND;
   battleLog(
@@ -723,19 +732,74 @@ function battleEnemyChoose(){
   );
 }
 
+function battleDist(a,b){
+  return Math.hypot((a.x||0)-(b.x||0),(a.y||0)-(b.y||0));
+}
+function battleClampPoint(x,y,r=.86){
+  const d=Math.hypot(x,y);
+  if(d<=r)return {x,y};
+  const k=r/Math.max(.0001,d);
+  return {x:x*k,y:y*k};
+}
+function battleApproachPoint(from,to,stop=.24){
+  const dx=from.x-to.x,dy=from.y-to.y,d=Math.hypot(dx,dy)||1;
+  return battleClampPoint(to.x+dx/d*stop,to.y+dy/d*stop);
+}
+function startActorMove(A,to){
+  A.moveFrom={x:A.x,y:A.y};
+  A.moveTo=battleClampPoint(to.x,to.y);
+}
+function clearActorMove(A){
+  if(A.moveTo){A.x=A.moveTo.x;A.y=A.moveTo.y}
+  A.moveFrom=null;A.moveTo=null;
+}
 function chooseBattleAction(kind){
   const B=state.battle;
   if(!B||B.ended||B.P.mode!=="command")return;
+
+  if(kind==="move"){
+    B.P.action={...BATTLE_ACTIONS.move};
+    B.P.mode="targeting";
+    B.paused=true;
+    battleLog("MOVE","Tap anywhere inside the arena. Distance becomes preparation time.");
+    return;
+  }
+
   B.P.action={...BATTLE_ACTIONS[kind]};
+  if(kind==="quick"){
+    const to=battleApproachPoint(B.P,B.E,.24);
+    const d=battleDist(B.P,to);
+    B.P.action.cast=.42+d*.55;
+    startActorMove(B.P,to);
+  }else{
+    B.P.moveFrom=null;B.P.moveTo=null;
+  }
   B.P.mode="charging";
   B.paused=false;
   battleLog(B.P.action.name+" selected.","Creature Zero still has to reach ACTION before it happens.");
+}
+function chooseBattleMoveTarget(x,y){
+  const B=state.battle;
+  if(!B||B.P.mode!=="targeting")return;
+  const to=battleClampPoint(x,y);
+  const d=Math.hypot(to.x-B.P.x,to.y-B.P.y);
+  B.P.action={...BATTLE_ACTIONS.move,cast:.28+d*.95};
+  startActorMove(B.P,to);
+  B.P.mode="charging";
+  B.paused=false;
+  battleLog("Repositioning.","Creature Zero crosses the arena while both timelines keep moving.");
 }
 
 function executeBattlePlayer(){
   const B=state.battle;
   const P=B.P,E=B.E,a=P.action;
   P.mode="moving";P.action=null;P.pos=0;P.lungeUntil=performance.now()+260;
+  clearActorMove(P);
+
+  if(a.name==="Move"){
+    battleLog("Creature Zero repositions.","A new angle, bought with timeline.");
+    return;
+  }
 
   if(a.name==="Brace"){
     P.shield=.55;
@@ -780,6 +844,7 @@ function executeBattleEnemy(){
   const B=state.battle;
   const P=B.P,E=B.E,a=E.action;
   E.mode="moving";E.action=null;E.pos=0;E.lungeUntil=performance.now()+260;
+  clearActorMove(E);
 
   let dmg=a.damage;
   if(P.shield){
@@ -842,6 +907,12 @@ function advanceBattleActor(A,dt,isPlayer){
     }
   }else if(A.mode==="charging"){
     A.pos+=(BATTLE_EXECUTE-BATTLE_COMMAND)/A.action.cast*dt;
+    if(A.moveFrom&&A.moveTo){
+      const mt=clamp((A.pos-BATTLE_COMMAND)/(BATTLE_EXECUTE-BATTLE_COMMAND),0,1);
+      const e=smoothstep(mt);
+      A.x=lerp(A.moveFrom.x,A.moveTo.x,e);
+      A.y=lerp(A.moveFrom.y,A.moveTo.y,e);
+    }
     if(A.pos>=BATTLE_EXECUTE){
       A.pos=BATTLE_EXECUTE;
       if(isPlayer)executeBattlePlayer();
@@ -1674,36 +1745,112 @@ function drawBramblejaw(panel,B,now){
   });
 }
 
-function drawBattleArena(r,B,playerPanel,enemyPanel,now){
+function battleArenaGeom(r){
+  return {
+    cx:r.x+r.w*.5,
+    cy:r.y+r.h*.56,
+    rx:r.w*.38,
+    ry:r.h*.22
+  };
+}
+function battleWorldToScreen(r,x,y){
+  const G=battleArenaGeom(r);
+  return {
+    x:G.cx+(x-y)*G.rx*.62,
+    y:G.cy+(x+y)*G.ry*.62
+  };
+}
+function battleScreenToWorld(r,sx,sy){
+  const G=battleArenaGeom(r);
+  const a=(sx-G.cx)/(G.rx*.62);
+  const b=(sy-G.cy)/(G.ry*.62);
+  return battleClampPoint((a+b)/2,(b-a)/2);
+}
+function battleActorRect(r,A,enemy=false){
+  const p=battleWorldToScreen(r,A.x||0,A.y||0);
+  const s=Math.min(r.w*.25,r.h*.44);
+  return {x:p.x-s*.5,y:p.y-s*.78,w:s,h:s};
+}
+function drawBattleArena(r,B,playerPanel,enemyPanel,now,interactive=false){
   fillRound(r,"#10271a",20);
   strokeRound(r,"#ffffff14",20,1);
 
+  const G=battleArenaGeom(r);
+
+  // True circular battle-space, projected into the isometric view.
   ctx.beginPath();
-  ctx.ellipse(r.x+r.w/2,r.y+r.h*.84,r.w*.39,r.h*.09,0,0,Math.PI*2);
-  ctx.fillStyle="#63492f55";
+  ctx.ellipse(G.cx,G.cy,G.rx,G.ry,0,0,Math.PI*2);
+  ctx.fillStyle="#59452f";
   ctx.fill();
+  ctx.strokeStyle="#9a845d";
+  ctx.lineWidth=3;
+  ctx.stroke();
 
-  const player=battleActorPanel(playerPanel,B.P,false,now);
-  const enemy=battleActorPanel(enemyPanel,B.E,true,now);
+  ctx.beginPath();
+  ctx.ellipse(G.cx,G.cy,G.rx*.91,G.ry*.91,0,0,Math.PI*2);
+  ctx.strokeStyle="#c2ad7b33";
+  ctx.lineWidth=2;
+  ctx.stroke();
 
-  // Battle uses Creature Zero's same body renderer, without its Tamagotchi card chrome.
-  drawCreature(player,now,{labels:false});
-  drawBramblejaw(enemyPanel,B,now);
+  // Subtle axes make the projection readable without turning it into a tile grid.
+  ctx.strokeStyle="#ffffff0d";
+  ctx.lineWidth=1;
+  for(const q of [-.5,0,.5]){
+    const a=battleWorldToScreen(r,-.85,q),b=battleWorldToScreen(r,.85,q);
+    ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();
+    const c=battleWorldToScreen(r,q,-.85),d=battleWorldToScreen(r,q,.85);
+    ctx.beginPath();ctx.moveTo(c.x,c.y);ctx.lineTo(d.x,d.y);ctx.stroke();
+  }
 
-  text("Creature Zero",player.x+player.w/2,player.y+player.h-25,{
-    size:fitText("Creature Zero",player.w-16,{maxSize:11,minSize:8,weight:900}),
+  const heavy=B.E.mode==="charging"&&B.E.action&&B.E.action.name==="Heavy Bloom";
+  if(heavy){
+    const ep=battleWorldToScreen(r,B.E.x,B.E.y);
+    const rad=.34;
+    ctx.beginPath();
+    ctx.ellipse(ep.x,ep.y,G.rx*rad,G.ry*rad,0,0,Math.PI*2);
+    ctx.fillStyle="#d8b85a22";ctx.fill();
+    ctx.strokeStyle="#e5ca78aa";ctx.lineWidth=3;ctx.stroke();
+    text("HEAVY BLOOM",ep.x,ep.y-G.ry*rad-17,{size:10,weight:950,align:"center",color:"#f3d987"});
+  }
+
+  if(B.P.mode==="targeting"){
+    ctx.beginPath();
+    ctx.ellipse(G.cx,G.cy,G.rx*.96,G.ry*.96,0,0,Math.PI*2);
+    ctx.strokeStyle="#bce77f";ctx.lineWidth=2;ctx.setLineDash([6,6]);ctx.stroke();ctx.setLineDash([]);
+    text("tap a destination",G.cx,r.y+12,{size:10,weight:850,align:"center",color:"#cfeaa7"});
+  }
+
+  let pr=battleActorRect(r,B.P,false);
+  let er=battleActorRect(r,B.E,true);
+  pr=battleActorPanel(pr,B.P,false,now);
+  er=battleActorPanel(er,B.E,true,now);
+
+  // Depth-sort by projected feet so crossing paths remains believable.
+  const actors=[
+    {kind:"P",rect:pr,foot:pr.y+pr.h},
+    {kind:"E",rect:er,foot:er.y+er.h}
+  ].sort((a,b)=>a.foot-b.foot);
+
+  for(const a of actors){
+    if(a.kind==="P")drawCreature(a.rect,now,{labels:false});
+    else drawBramblejaw(a.rect,B,now);
+  }
+
+  text("Creature Zero",pr.x+pr.w/2,pr.y+pr.h-25,{
+    size:fitText("Creature Zero",pr.w-12,{maxSize:10,minSize:7.5,weight:900}),
     weight:900,align:"center",color:"#eef3df"
   });
 
-  const hpPad=10;
-  drawBattleHp(
-    {x:player.x+hpPad,y:player.y+player.h-8,w:Math.max(20,player.w-hpPad*2),h:7},
-    B.P.hp,B.P.maxHp,"#8fc968"
-  );
-  drawBattleHp(
-    {x:enemy.x+hpPad,y:enemy.y+enemy.h-8,w:Math.max(20,enemy.w-hpPad*2),h:7},
-    B.E.hp,B.E.maxHp,"#c98768"
-  );
+  const hpPad=6;
+  drawBattleHp({x:pr.x+hpPad,y:pr.y+pr.h-7,w:Math.max(20,pr.w-hpPad*2),h:7},B.P.hp,B.P.maxHp,"#8fc968");
+  drawBattleHp({x:er.x+hpPad,y:er.y+er.h-7,w:Math.max(20,er.w-hpPad*2),h:7},B.E.hp,B.E.maxHp,"#c98768");
+
+  if(interactive&&B.P.mode==="targeting"){
+    registerHit("battle-arena-move",r,()=>{
+      const p=battleScreenToWorld(r,state.pointer.x,state.pointer.y);
+      chooseBattleMoveTarget(p.x,p.y);
+    });
+  }
 }
 
 function drawBattleTimeline(r,B,u){
@@ -1797,20 +1944,21 @@ function drawBattleInfo(r,B,u,interactive){
 
   const canChoose=interactive&&B.P.mode==="command";
   const cmds=[
-    ["quick","Quick Strike","5 dmg · fast · contact","#789b58"],
-    ["root","Root Bind","2 dmg · cancel · slow","#47754d"],
-    ["brace","Brace","reduce next hit · +1 HP","#3b5144"]
+    ["quick","Quick Strike","approach · 5 dmg · contact","#789b58"],
+    ["root","Root Bind","ranged · cancel · slow","#47754d"],
+    ["brace","Brace","reduce next hit · +1 HP","#3b5144"],
+    ["move","Move","tap arena · distance costs time","#405d52"]
   ];
 
   if(state.W.layout<.5){
-    const bh=Math.min(42,(available-12)/3);
-    const start=inner.y+inner.h-(bh*3+12);
+    const bh=Math.min(38,(available-18)/4);
+    const start=inner.y+inner.h-(bh*4+18);
     cmds.forEach((cmd,i)=>drawBattleCommand(
       "cmd-"+cmd[0],{x:inner.x,y:start+i*(bh+6),w:inner.w,h:bh},
       cmd[1],cmd[2],cmd[3],()=>chooseBattleAction(cmd[0]),canChoose
     ));
   }else{
-    const bw=(inner.w-12)/3;
+    const bw=(inner.w-18)/4;
     const bh=Math.min(50,available);
     const y=inner.y+inner.h-bh;
     cmds.forEach((cmd,i)=>drawBattleCommand(
@@ -2044,8 +2192,9 @@ function draw(){
 
     ctx.save();
     ctx.globalAlpha=battleAlpha;
-    drawBattleArena(arenaPanel,Battle,creaturePanel,enemyPanel,now);
-    drawBattleInfo(infoPanel,Battle,u,state.W.scene>2.985&&state.sceneTarget===3);
+    const battleInteractive=state.W.scene>2.985&&state.sceneTarget===3;
+    drawBattleArena(arenaPanel,Battle,creaturePanel,enemyPanel,now,battleInteractive);
+    drawBattleInfo(infoPanel,Battle,u,battleInteractive);
     ctx.restore();
   }
 
