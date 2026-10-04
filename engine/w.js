@@ -11,6 +11,18 @@ const state={
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const lerp=(a,b,t)=>a+(b-a)*t;
 
+function text(str,x,y,opt={}){
+  const size=opt.size||12;
+  const weight=opt.weight||600;
+  const family=opt.family||"system-ui,-apple-system,sans-serif";
+  ctx.fillStyle=opt.color||"#dfe9d7";
+  ctx.font=weight+" "+size+"px "+family;
+  ctx.textAlign=opt.align||"left";
+  ctx.textBaseline=opt.baseline||"top";
+  ctx.fillText(str,x,y);
+  return ctx.measureText(str).width;
+}
+
 function solveViewport(){
   const w=Math.max(1,window.innerWidth);
   const h=Math.max(1,window.innerHeight);
@@ -82,20 +94,33 @@ function draw(){
   ctx.strokeStyle="#dff6a9";
   ctx.strokeRect(r.x+.5,r.y+.5,r.w-1,r.h-1);
 
-  ctx.fillStyle="#dfe9d7";
-  ctx.font="700 12px system-ui,-apple-system,sans-serif";
-  ctx.textAlign="left";
-  ctx.textBaseline="top";
-  ctx.fillText("BUDBORNE · W CANVAS 001",16,16);
+  const u=Math.min(w,h)/100;
+  const labelSize=clamp(3.1*u,11,16);
+  const heroSize=clamp(lerp(6.8,8.6,state.W.layout)*u,18,42);
 
-  ctx.fillStyle="#819487";
-  ctx.font="600 11px ui-monospace,SFMono-Regular,Menlo,monospace";
-  ctx.fillText(
+  text("BUDBORNE · W CANVAS 002",16,16,{
+    size:labelSize,weight:700
+  });
+
+  text(
     Math.round(w)+"×"+Math.round(h)+
     "  DPR "+state.view.dpr.toFixed(2)+
     "  W "+state.W.layout.toFixed(3),
-    16,34
+    16,16+labelSize+7,{
+      size:clamp(2.8*u,10,14),
+      weight:600,
+      family:"ui-monospace,SFMono-Regular,Menlo,monospace",
+      color:"#819487"
+    }
   );
+
+  text("GROW SOMETHING.",r.x+r.w/2,r.y+r.h/2,{
+    size:heroSize,
+    weight:900,
+    align:"center",
+    baseline:"middle",
+    color:active?"#17301f":"#102218"
+  });
 
   requestAnimationFrame(draw);
 }
