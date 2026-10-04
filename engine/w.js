@@ -59,6 +59,16 @@ function wrapText(str,maxWidth,opt={}){
   return lines;
 }
 
+function stackY(heights,centerY,gap){
+  const total=heights.reduce((sum,h)=>sum+h,0)+gap*Math.max(0,heights.length-1);
+  let y=centerY-total/2;
+  return heights.map(h=>{
+    const top=y;
+    y+=h+gap;
+    return top;
+  });
+}
+
 function solveViewport(){
   const w=Math.max(1,window.innerWidth);
   const h=Math.max(1,window.innerHeight);
@@ -139,7 +149,7 @@ function draw(){
     weight:900
   });
 
-  text("BUDBORNE · W CANVAS 004",16,16,{
+  text("BUDBORNE · W CANVAS 005",16,16,{
     size:labelSize,weight:700
   });
 
@@ -155,14 +165,6 @@ function draw(){
     }
   );
 
-  text("GROW SOMETHING.",r.x+r.w/2,r.y+r.h/2,{
-    size:heroSize,
-    weight:900,
-    align:"center",
-    baseline:"middle",
-    color:active?"#17301f":"#102218"
-  });
-
   const bodySize=clamp(3.2*u,11,16);
   const lines=wrapText(
     "The same sentence now respects a solved width without needing a DOM text box.",
@@ -170,12 +172,28 @@ function draw(){
     {size:bodySize,weight:650}
   );
   const lineHeight=bodySize*1.28;
-  const startY=r.y+r.h-18-(lines.length-1)*lineHeight;
-  lines.forEach((line,i)=>text(line,r.x+r.w/2,startY+i*lineHeight,{
+  const heroHeight=heroSize*1.08;
+  const bodyHeight=lines.length*lineHeight;
+  const gap=clamp(2.5*u,10,18);
+  const [heroTop,bodyTop]=stackY(
+    [heroHeight,bodyHeight],
+    r.y+r.h/2,
+    gap
+  );
+
+  text("GROW SOMETHING.",r.x+r.w/2,heroTop+heroHeight/2,{
+    size:heroSize,
+    weight:900,
+    align:"center",
+    baseline:"middle",
+    color:active?"#17301f":"#102218"
+  });
+
+  lines.forEach((line,i)=>text(line,r.x+r.w/2,bodyTop+i*lineHeight,{
     size:bodySize,
     weight:650,
     align:"center",
-    baseline:"bottom",
+    baseline:"top",
     color:"#24452c"
   }));
 
