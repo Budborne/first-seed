@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0d1f18">
+<title>Budborne: Expedition</title>
+<style>
+:root{color-scheme:dark;--bg:#091710;--panel:#0b1711ee;--leaf:#a9db70;--cream:#f5efcf;--muted:#9eb39f;--line:#ffffff18;--mud:#5c432b;--danger:#d98265;--gold:#e0c77c}
+*{box-sizing:border-box}
+body{margin:0;min-height:100svh;background:radial-gradient(circle at 50% 0,#244532,#0d2319 38%,var(--bg) 78%);color:var(--cream);font:16px system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;padding:calc(16px + env(safe-area-inset-top)) 14px calc(28px + env(safe-area-inset-bottom))}
+main{width:min(620px,100%);margin:auto}.brand{text-align:center;letter-spacing:.28em;font-weight:900;font-size:.78rem;opacity:.72}
+.header{margin:10px 4px 12px}.header h1{margin:0;font-size:2rem}.header p{margin:4px 0 0;color:var(--muted);font-size:.83rem}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:24px;padding:17px;box-shadow:0 22px 60px #0008;margin-bottom:12px}
+.route{position:relative;height:320px;overflow:hidden;background:
+radial-gradient(circle at 20% 16%,#2f5c39 0 10%,transparent 11%),
+radial-gradient(circle at 83% 27%,#295333 0 12%,transparent 13%),
+radial-gradient(circle at 18% 76%,#284d31 0 14%,transparent 15%),
+radial-gradient(circle at 82% 78%,#23482d 0 13%,transparent 14%),
+linear-gradient(#193822,#10291a);border-radius:20px;border:1px solid var(--line)}
+.path{position:absolute;left:48%;top:-6%;width:20%;height:115%;background:#baa36b33;transform:rotate(10deg);clip-path:polygon(35% 0,65% 0,100% 100%,0 100%)}
+.node{position:absolute;width:42px;height:42px;border-radius:50%;display:grid;place-items:center;background:#0b1711;border:3px solid #ffffff25;font-weight:950;box-shadow:0 5px 16px #0007;transition:.25s}
+.node.done{background:#476d41;border-color:var(--leaf)}.node.here{transform:scale(1.2);border-color:var(--gold);box-shadow:0 0 0 7px #e0c77c1a,0 5px 16px #0007}
+.n0{left:43%;bottom:7%}.n1{left:57%;bottom:25%}.n2{left:38%;bottom:43%}.n3{left:56%;bottom:60%}.n4{left:36%;bottom:76%}.n5{left:52%;top:5%}
+.party{position:absolute;left:12px;bottom:12px;padding:7px 9px;background:#07130ddd;border:1px solid var(--line);border-radius:12px;font-size:.76rem}.party b{color:var(--leaf)}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.stat{background:#ffffff08;border:1px solid var(--line);border-radius:14px;padding:10px;text-align:center}.stat span{display:block;color:var(--muted);font-size:.7rem}.stat b{display:block;margin-top:2px;font-size:1.05rem}
+.log{min-height:120px;margin-top:12px;padding:13px;border-radius:16px;background:#07130d;border:1px solid var(--line);line-height:1.5}.log strong{display:block;margin-bottom:4px}.log p{margin:0;color:var(--muted);font-size:.85rem}
+.loot{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}.chip{padding:6px 9px;border-radius:999px;background:#ffffff0a;border:1px solid var(--line);font-size:.75rem;font-weight:800}
+.actions{display:grid;grid-template-columns:1.25fr .75fr;gap:9px;margin-top:12px}button,a.btn{min-height:52px;border:0;border-radius:15px;background:var(--leaf);color:#102014;font:inherit;font-weight:950;display:flex;align-items:center;justify-content:center;text-decoration:none;touch-action:manipulation}.secondary{background:#355641!important;color:var(--cream)!important}.danger{background:#5d342c!important;color:#f4d6ca!important}.muted{background:#ffffff0a!important;color:var(--muted)!important;border:1px solid var(--line)!important}
+.note{color:var(--muted);font-size:.76rem;line-height:1.45;margin:10px 2px 0}
+</style>
+</head>
+<body>
+<main>
+<div class="brand">BUDBORNE</div>
+<div class="header"><h1>Mossglass Hollow</h1><p>A first cardboard expedition. Go deeper, find things, decide when to turn back.</p></div>
+
+<section class="card">
+  <div class="route">
+    <div class="path"></div>
+    <div class="node n0 here" data-node="0">⌂</div>
+    <div class="node n1" data-node="1">1</div>
+    <div class="node n2" data-node="2">2</div>
+    <div class="node n3" data-node="3">3</div>
+    <div class="node n4" data-node="4">4</div>
+    <div class="node n5" data-node="5">✦</div>
+    <div class="party">Party: <b>Creature Zero</b> 🌿</div>
+  </div>
+</section>
+
+<section class="card">
+  <div class="stats">
+    <div class="stat"><span>Depth</span><b id="depth">0 / 5</b></div>
+    <div class="stat"><span>Trail time</span><b id="trailTime">0.0h</b></div>
+    <div class="stat"><span>Vigor</span><b id="vigor">3 ♥</b></div>
+  </div>
+  <div class="log">
+    <strong id="eventTitle">At the trailhead</strong>
+    <p id="eventText">The clearing is still visible behind you. The Hollow gets stranger farther in.</p>
+    <div class="loot" id="loot"></div>
+  </div>
+  <div class="actions" id="actions">
+    <button id="push">Push deeper</button>
+    <button id="return" class="secondary">Return home</button>
+  </div>
+  <p class="note">Complete the route and home advances by the full expedition duration. If the expedition fails or you retreat early, only part of that trail time reaches home.</p>
+</section>
+</main>
+
+<script>
+(function(){
+  const HOME_KEY="budborne:home-v1", RUN_KEY="budborne:expedition-v1";
+  const $=id=>document.getElementById(id);
+  let R;
+  try{R=JSON.parse(sessionStorage.getItem(RUN_KEY)||"{}")}catch(e){R={}}
+  R={depth:0,time:0,vigor:3,loot:{wildSeed:0,resin:0,dewstone:0},finished:false,...R};
+
+  const events=[
+    {title:"Glassleaf thicket",text:"Thin leaves ring softly against one another. Creature Zero noses something loose from the roots.",time:1.0,loot:"wildSeed"},
+    {title:"Amber bark",text:"A fallen limb leaks sweet-smelling resin. You scrape off what you can carry.",time:1.25,loot:"resin"},
+    {title:"Cold spring",text:"A clear spring cuts across the trail. The pause helps more than expected.",time:.8,heal:1},
+    {title:"Hookthorn snag",text:"A thorned vine catches the party before anyone sees it move.",time:.65,hurt:1},
+    {title:"Dewstone hollow",text:"A pale mineral glints beneath wet moss. It comes free with a little persuasion.",time:1.4,loot:"dewstone"},
+    {title:"Quiet stretch",text:"Nothing attacks. Nothing sparkles. Somehow that makes the Hollow feel more suspicious.",time:.9},
+    {title:"Root bridge",text:"The trail crosses a ravine on roots thick enough to walk. Creature Zero takes its time.",time:1.2}
+  ];
+  function save(){sessionStorage.setItem(RUN_KEY,JSON.stringify(R))}
+  function lootName(k){return {wildSeed:"Wild Seed",resin:"Amber Resin",dewstone:"Dewstone"}[k]}
+  function render(){
+    $("depth").textContent=R.depth+" / 5";$("trailTime").textContent=R.time.toFixed(1)+"h";$("vigor").textContent=R.vigor+" ♥";
+    document.querySelectorAll(".node").forEach(n=>{
+      const i=Number(n.dataset.node);n.classList.toggle("done",i<R.depth);n.classList.toggle("here",i===R.depth);
+    });
+    const chips=[];
+    Object.keys(R.loot).forEach(k=>{if(R.loot[k])chips.push('<span class="chip">'+lootName(k)+' ×'+R.loot[k]+'</span>')});
+    $("loot").innerHTML=chips.join("")||'<span class="chip">Pack empty</span>';
+    save();
+  }
+  function pickEvent(){
+    const pool=events.slice();
+    if(R.vigor<=1)return pool[Math.floor(Math.random()*pool.length)];
+    return pool[Math.floor(Math.random()*pool.length)];
+  }
+  function step(){
+    if(R.finished)return;
+    const e=pickEvent();R.depth++;R.time+=e.time;
+    if(e.loot)R.loot[e.loot]++;
+    if(e.hurt)R.vigor=Math.max(0,R.vigor-e.hurt);
+    if(e.heal)R.vigor=Math.min(3,R.vigor+e.heal);
+    $("eventTitle").textContent=e.title;$("eventText").textContent=e.text;
+    if(R.vigor<=0){finish(false,true);return}
+    if(R.depth>=5){
+      R.loot.wildSeed++;
+      $("eventTitle").textContent="The Heartroot cache";
+      $("eventText").textContent="You reach a root-wrapped hollow full of old seed husks. One living seed remains. The expedition is complete.";
+      finish(true,false);return;
+    }
+    render();
+  }
+  function loadHome(){
+    let H;try{H=JSON.parse(localStorage.getItem(HOME_KEY)||"{}")}catch(e){H={}}
+    H={hour:Number.isFinite(H.hour)?H.hour:8,day:H.day||1,seeds:Number.isFinite(H.seeds)?H.seeds:3,moist:Number.isFinite(H.moist)?H.moist:70,crops:Array.isArray(H.crops)?H.crops:[0,0,0],inventory:H.inventory||{wildSeed:0,resin:0,dewstone:0},...H};
+    if(!H.inventory)H.inventory={wildSeed:0,resin:0,dewstone:0};
+    return H;
+  }
+  function advanceHome(H,hours){
+    H.hour+=hours;H.moist=Math.max(0,H.moist-hours*2.5);
+    while(H.hour>=24){H.hour-=24;H.day++}
+    H.crops=H.crops.map(v=>v?Math.min(3,v+hours/6):0);
+  }
+  function commitHome(success,forced){
+    const H=loadHome();
+    const factor=success?1:(forced?.25:.4);
+    const passed=Math.max(.25,R.time*factor);
+    advanceHome(H,passed);
+    Object.keys(R.loot).forEach(k=>H.inventory[k]=(H.inventory[k]||0)+R.loot[k]);
+    if(R.loot.wildSeed)H.seeds+=R.loot.wildSeed;
+    H.lastExpedition={success:success,forced:forced,trailTime:R.time,homeTime:passed,loot:R.loot,at:Date.now()};
+    localStorage.setItem(HOME_KEY,JSON.stringify(H));
+    sessionStorage.removeItem(RUN_KEY);
+    return passed;
+  }
+  function finish(success,forced){
+    R.finished=true;render();
+    const passed=commitHome(success,forced);
+    $("push").remove();
+    $("return").textContent="Return to clearing";
+    $("return").className="secondary";
+    $("return").onclick=()=>location.href="home.html";
+    if(success){
+      $("eventText").textContent+=" Home will advance "+passed.toFixed(1)+" hours when you return.";
+    }else{
+      $("eventTitle").textContent=forced?"Forced retreat":"Early retreat";
+      $("eventText").textContent=(forced?"The Hollow wins this round.":"You decide not to push your luck.")+" Only "+passed.toFixed(1)+" hours pass back at home.";
+    }
+  }
+  $("push").onclick=step;
+  $("return").onclick=()=>finish(false,false);
+  render();
+})();
+</script>
+</body>
+</html>
