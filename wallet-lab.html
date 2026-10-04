@@ -6,46 +6,21 @@
 <meta name="theme-color" content="#10281d">
 <title>Budborne: Wallet Lab</title>
 <style>
-:root{color-scheme:dark;--bg:#0b1f17;--panel:#0b1711ed;--leaf:#a9db70;--leaf2:#5f9b52;--cream:#f5efcf;--muted:#a8b9a9;--mud:#294432;--line:#ffffff16;--warn:#d6a76e}
+:root{color-scheme:dark;--bg:#0b1f17;--panel:#0b1711ed;--leaf:#a9db70;--cream:#f5efcf;--muted:#a8b9a9;--mud:#294432;--line:#ffffff16;--warn:#d6a76e}
 *{box-sizing:border-box}
 body{margin:0;min-height:100svh;background:radial-gradient(circle at 50% 8%,#295139 0,#102b20 35%,var(--bg) 75%);color:var(--cream);font:16px system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;padding:calc(20px + env(safe-area-inset-top)) 18px calc(30px + env(safe-area-inset-bottom))}
-main{width:min(560px,100%);margin:auto}
-.brand{text-align:center;letter-spacing:.28em;font-weight:900;font-size:.78rem;opacity:.72}
+main{width:min(560px,100%);margin:auto}.brand{text-align:center;letter-spacing:.28em;font-weight:900;font-size:.78rem;opacity:.72}
 .card{margin-top:12px;background:var(--panel);border:1px solid var(--line);border-radius:28px;padding:22px;box-shadow:0 24px 70px #0008}
-h1{font-size:clamp(2rem,10vw,3.35rem);line-height:1;margin:.15em 0 .2em;text-align:center}
-.sub{text-align:center;color:var(--muted);font-weight:650;line-height:1.45;margin:0 auto 18px;max-width:430px}
-.badges{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:18px}
-.badge{padding:6px 10px;border:1px solid var(--line);background:#ffffff08;border-radius:999px;font-size:.76rem;font-weight:800;color:var(--muted)}
-.badge.live{color:#c9f29d;border-color:#a9db7040}
-.section{border-top:1px solid var(--line);padding-top:16px;margin-top:16px}
-.section h2{font-size:.78rem;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);margin:0 0 10px}
-.status{background:var(--mud);padding:13px;border-radius:16px;line-height:1.4}
-.status strong{display:block;color:var(--cream);margin-bottom:3px}
-.status small{color:var(--muted)}
-.wallets{display:grid;gap:9px}
-.wallet{display:flex;align-items:center;gap:12px;background:#ffffff08;border:1px solid var(--line);border-radius:16px;padding:10px}
-.wallet img{width:38px;height:38px;border-radius:11px}
-.wallet .info{min-width:0;flex:1}
-.wallet .name{font-weight:850}
-.wallet .features{font-size:.72rem;color:var(--muted);margin-top:2px}
-button,.button{border:0;border-radius:14px;padding:11px 14px;font:inherit;font-weight:900;background:var(--leaf);color:#102014;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;touch-action:manipulation}
-.wallet button{padding:10px 12px}
-button.secondary,.button.secondary{background:#355641;color:var(--cream)}
-button.ghost,.button.ghost{background:#ffffff08;color:var(--cream);border:1px solid var(--line)}
-button:disabled{opacity:.45}
-.actions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:10px}
-.address{font:700 .82rem ui-monospace,SFMono-Regular,Menlo,monospace;overflow-wrap:anywhere;margin-top:8px;color:#cce9bb}
-.result{background:#08140f;border:1px solid var(--line);border-radius:16px;padding:13px;margin-top:10px;display:none}
-.result.show{display:block}
-.result .ok{font-weight:900;color:#bceb88}
-.result pre{white-space:pre-wrap;overflow-wrap:anywhere;color:var(--muted);font-size:.7rem;margin:8px 0 0}
-.mobile{display:none}
-.mobile.show{display:block}
-.mobilelinks{display:grid;gap:9px;margin-top:10px}
-.note{font-size:.78rem;line-height:1.5;color:var(--muted)}
-.warn{color:var(--warn)}
-.back{display:block;text-align:center;color:var(--muted);font-weight:800;text-decoration:none;margin-top:18px}
-.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#829287;margin-right:6px}.dot.on{background:var(--leaf);box-shadow:0 0 12px #a9db7088}
+h1{font-size:clamp(2rem,10vw,3.35rem);line-height:1;margin:.15em 0 .2em;text-align:center}.sub{text-align:center;color:var(--muted);font-weight:650;line-height:1.45;margin:0 auto 18px;max-width:450px}
+.badges{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:18px}.badge{padding:6px 10px;border:1px solid var(--line);background:#ffffff08;border-radius:999px;font-size:.76rem;font-weight:800;color:var(--muted)}.badge.live{color:#c9f29d;border-color:#a9db7040}
+.section{border-top:1px solid var(--line);padding-top:16px;margin-top:16px}.section h2{font-size:.78rem;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);margin:0 0 10px}
+.status{background:var(--mud);padding:13px;border-radius:16px;line-height:1.4}.status strong{display:block;color:var(--cream);margin-bottom:3px}.status small{color:var(--muted)}
+.wallets{display:grid;gap:9px}.wallet{display:flex;align-items:center;gap:12px;background:#ffffff08;border:1px solid var(--line);border-radius:16px;padding:10px}.wallet img{width:38px;height:38px;border-radius:11px}.wallet .info{min-width:0;flex:1}.wallet .name{font-weight:850}.wallet .features{font-size:.72rem;color:var(--muted);margin-top:2px}
+button,.button{border:0;border-radius:14px;padding:11px 14px;font:inherit;font-weight:900;background:var(--leaf);color:#102014;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;touch-action:manipulation}.wallet button{padding:10px 12px}button.secondary,.button.secondary{background:#355641;color:var(--cream)}button.ghost,.button.ghost{background:#ffffff08;color:var(--cream);border:1px solid var(--line)}button:disabled{opacity:.45}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:10px}.address{font:700 .82rem ui-monospace,SFMono-Regular,Menlo,monospace;overflow-wrap:anywhere;margin-top:8px;color:#cce9bb}
+.result{background:#08140f;border:1px solid var(--line);border-radius:16px;padding:13px;margin-top:10px;display:none}.result.show{display:block}.result .ok{font-weight:900;color:#bceb88}.result pre{white-space:pre-wrap;overflow-wrap:anywhere;color:var(--muted);font-size:.7rem;margin:8px 0 0}
+.claimcard{background:linear-gradient(145deg,#24452f,#183224);border:1px solid #a9db7030;border-radius:18px;padding:15px}.claimtitle{font-weight:950;font-size:1.05rem}.claimmeta{display:grid;grid-template-columns:1fr auto;gap:8px;margin:11px 0;color:var(--muted);font-size:.8rem}.claimmeta b{color:var(--cream)}.claimbuttons{display:grid;gap:9px}.explorer{display:none;margin-top:10px}.explorer.show{display:flex}
+.mobile{display:none}.mobile.show{display:block}.mobilelinks{display:grid;gap:9px;margin-top:10px}.note{font-size:.78rem;line-height:1.5;color:var(--muted)}.warn{color:var(--warn)}.back{display:block;text-align:center;color:var(--muted);font-weight:800;text-decoration:none;margin-top:18px}.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#829287;margin-right:6px}.dot.on{background:var(--leaf);box-shadow:0 0 12px #a9db7088}
 </style>
 </head>
 <body>
@@ -53,13 +28,13 @@ button:disabled{opacity:.45}
   <div class="brand">BUDBORNE</div>
   <section class="card">
     <h1>Wallet Lab 🔑</h1>
-    <p class="sub">A tiny ownership experiment. Detect a Solana wallet, connect, then sign a harmless message to prove the address belongs to you.</p>
+    <p class="sub">Connect a Solana wallet, prove the address locally, then plant a harmless Creature Zero claim receipt on Solana devnet.</p>
 
     <div class="badges">
       <span class="badge live">Wallet Standard</span>
-      <span class="badge">Devnet target</span>
-      <span class="badge">No transaction</span>
-      <span class="badge">No SOL required</span>
+      <span class="badge live">Devnet claim</span>
+      <span class="badge">No mainnet</span>
+      <span class="badge">No token</span>
     </div>
 
     <div class="status" id="status">
@@ -71,7 +46,7 @@ button:disabled{opacity:.45}
       <h2>Detected wallets</h2>
       <div class="wallets" id="wallets"></div>
       <div class="mobile" id="mobileFallback">
-        <p class="note">Mobile Safari often cannot see a wallet provider directly. Open this exact page inside a wallet's in-app browser and the same Wallet Standard test can run there.</p>
+        <p class="note">Mobile Safari often cannot see a wallet provider directly. Open this exact page inside a wallet's in-app browser.</p>
         <div class="mobilelinks">
           <a class="button" id="openPhantom" href="#">Open in Phantom</a>
           <a class="button secondary" id="openSolflare" href="#">Open in Solflare</a>
@@ -97,9 +72,28 @@ button:disabled{opacity:.45}
     </div>
 
     <div class="section">
-      <h2>What this proves</h2>
-      <p class="note">The wallet gives Budborne a public address only after you approve the connection. The proof button asks the wallet to sign a plain-text challenge. Budborne verifies that signature in your browser. No token moves, no transaction is sent, and nothing touches mainnet.</p>
-      <p class="note warn">Never type a seed phrase or private key into Budborne. A real wallet connection should never ask for either.</p>
+      <h2>Devnet claim</h2>
+      <div class="claimcard">
+        <div class="claimtitle">🌱 Creature Zero</div>
+        <p class="note">This does <b>not</b> mint an NFT or create enforceable ownership yet. It writes a signed Memo receipt to <b>Solana devnet</b>: this wallet claimed Creature Zero in our prototype.</p>
+        <div class="claimmeta"><span>Network</span><b>Solana Devnet</b><span>Test SOL</span><b id="balance">—</b><span>Expected fee</span><b>~0.000005 SOL</b></div>
+        <div class="claimbuttons">
+          <button id="refreshBalance" class="ghost" disabled>Refresh devnet balance</button>
+          <button id="airdrop" class="secondary" disabled>Request test SOL</button>
+          <button id="claim" disabled>Plant claim on devnet</button>
+        </div>
+        <div class="result" id="claimResult">
+          <div class="ok" id="claimTitle">✓ Claim planted on devnet</div>
+          <div class="note" id="claimText"></div>
+          <a class="button ghost explorer" id="explorer" target="_blank" rel="noopener">View on Solana Explorer</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>What we are testing</h2>
+      <p class="note">Message signing proves control of the public address without touching a network. The devnet claim goes one step farther: your wallet signs a transaction and the signed memo is recorded on Solana's test network.</p>
+      <p class="note warn">Devnet SOL has no monetary value. This lab never needs your seed phrase or private key. Do not enter either into Budborne.</p>
     </div>
   </section>
   <a class="back" href="./">← Back to Creature Zero</a>
@@ -108,30 +102,28 @@ button:disabled{opacity:.45}
 <script type="module">
 import { getWallets } from "https://esm.sh/@wallet-standard/app";
 import nacl from "https://esm.sh/tweetnacl@1.0.3";
+import bs58 from "https://esm.sh/bs58@6.0.0";
+import { Connection, PublicKey, Transaction, TransactionInstruction, LAMPORTS_PER_SOL } from "https://esm.sh/@solana/web3.js@1.98.4";
 
 const $=id=>document.getElementById(id);
 const registry=getWallets();
-let selected=null;
-let account=null;
-let injectedPhantom=false;
+const connection=new Connection("https://api.devnet.solana.com","confirmed");
+const MEMO_PROGRAM=new PublicKey("MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr");
+let selected=null, account=null, injectedPhantom=false;
 
 const page=window.location.href;
 $("openPhantom").href="https://phantom.app/ul/browse/"+encodeURIComponent(page)+"?ref="+encodeURIComponent(window.location.origin);
 $("openSolflare").href="https://solflare.com/ul/v1/browse/"+encodeURIComponent(page)+"?ref="+encodeURIComponent(window.location.origin);
 
 function featureList(wallet){
-  const f=wallet.features||{};
-  const bits=[];
+  const f=wallet.features||{},bits=[];
   if(f["standard:connect"])bits.push("connect");
   if(f["solana:signMessage"])bits.push("sign message");
-  if(f["solana:signAndSendTransaction"])bits.push("send tx");
+  if(f["solana:signTransaction"])bits.push("sign tx");
+  else if(f["solana:signAndSendTransaction"])bits.push("send tx");
   return bits.join(" · ")||"Wallet Standard";
 }
-function setStatus(title,text,on=false){
-  $("statusTitle").textContent=title;
-  $("statusText").textContent=text;
-  $("dot").classList.toggle("on",on);
-}
+function setStatus(title,text,on=false){$("statusTitle").textContent=title;$("statusText").textContent=text;$("dot").classList.toggle("on",on)}
 function shorten(s){return s&&s.length>18?s.slice(0,7)+"…"+s.slice(-7):s||"—"}
 function hex(bytes){return Array.from(bytes).map(b=>b.toString(16).padStart(2,"0")).join("")}
 
@@ -141,38 +133,25 @@ async function connectStandard(wallet){
     const feature=wallet.features["standard:connect"];
     if(!feature)throw new Error("This wallet does not expose standard:connect.");
     const out=await feature.connect();
-    const accounts=(out&&out.accounts&&out.accounts.length?out.accounts:wallet.accounts)||[];
+    const accounts=(out?.accounts?.length?out.accounts:wallet.accounts)||[];
     if(!accounts.length)throw new Error("The wallet connected but returned no Solana account.");
-    selected=wallet;
-    account=accounts.find(a=>(a.chains||[]).some(c=>String(c).startsWith("solana:")))||accounts[0];
-    injectedPhantom=false;
+    selected=wallet;account=accounts.find(a=>(a.chains||[]).some(c=>String(c).startsWith("solana:")))||accounts[0];injectedPhantom=false;
     connectedUI(wallet.name,account.address,!!wallet.features["solana:signMessage"]);
-  }catch(err){
-    setStatus("Connection stopped",err?.message||String(err));
-  }
+  }catch(err){setStatus("Connection stopped",err?.message||String(err))}
 }
-
 async function connectInjectedPhantom(){
   try{
     setStatus("Waiting for Phantom…","Check the connection prompt.");
-    const provider=window.phantom?.solana;
-    const res=await provider.connect();
-    selected={name:"Phantom",provider};
-    account={address:res.publicKey.toString(),publicKey:res.publicKey.toBytes?res.publicKey.toBytes():null};
-    injectedPhantom=true;
+    const provider=window.phantom?.solana,res=await provider.connect();
+    selected={name:"Phantom",provider};account={address:res.publicKey.toString(),publicKey:res.publicKey.toBytes?res.publicKey.toBytes():null};injectedPhantom=true;
     connectedUI("Phantom",account.address,true);
   }catch(err){setStatus("Connection stopped",err?.message||String(err))}
 }
-
 function connectedUI(name,address,canSign){
-  $("walletName").textContent=name;
-  $("address").textContent=address;
-  $("sign").disabled=!canSign;
-  $("disconnect").disabled=false;
-  $("proof").classList.remove("show");
-  setStatus("Connected",shorten(address),true);
+  $("walletName").textContent=name;$("address").textContent=address;$("sign").disabled=!canSign;$("disconnect").disabled=false;
+  $("refreshBalance").disabled=false;$("airdrop").disabled=false;$("claim").disabled=false;$("proof").classList.remove("show");
+  setStatus("Connected",shorten(address),true);refresh();updateBalance();restoreClaim();
 }
-
 function walletRow(wallet){
   const row=document.createElement("div");row.className="wallet";
   if(wallet.icon){const img=document.createElement("img");img.src=wallet.icon;img.alt="";row.appendChild(img)}
@@ -180,76 +159,122 @@ function walletRow(wallet){
   const name=document.createElement("div");name.className="name";name.textContent=wallet.name;
   const feats=document.createElement("div");feats.className="features";feats.textContent=featureList(wallet);
   info.append(name,feats);row.appendChild(info);
-  const b=document.createElement("button");b.textContent="Connect";b.onclick=()=>connectStandard(wallet);
+  const b=document.createElement("button");
+  const isConnected=!!(selected&&account&&selected.name===wallet.name);
+  b.textContent=isConnected?"Connected":"Connect";b.disabled=isConnected;b.onclick=()=>connectStandard(wallet);
   row.appendChild(b);return row;
 }
-
 function refresh(){
   const list=registry.get().filter(w=>(w.chains||[]).some(c=>String(c).startsWith("solana:"))||Object.keys(w.features||{}).some(f=>f.startsWith("solana:")));
   $("wallets").replaceChildren(...list.map(walletRow));
-
   const phantom=window.phantom?.solana;
   if(!list.length&&phantom?.isPhantom){
-    const fake={name:"Phantom",features:{},icon:null};
-    const row=walletRow(fake);
-    row.querySelector(".features").textContent="injected provider fallback";
-    row.querySelector("button").onclick=connectInjectedPhantom;
-    $("wallets").appendChild(row);
+    const fake={name:"Phantom",features:{},icon:null},row=walletRow(fake);
+    row.querySelector(".features").textContent="injected provider fallback";row.querySelector("button").onclick=connectInjectedPhantom;$("wallets").appendChild(row);
   }
-
-  const count=$("wallets").children.length;
-  $("mobileFallback").classList.toggle("show",count===0);
-  if(!selected){
-    if(count)setStatus(count+" wallet"+(count===1?"":"s")+" detected","Choose one to connect. Nothing happens without your tap.");
-    else setStatus("No wallet detected","On iPhone, try opening this page inside Phantom or Solflare.");
-  }
+  const count=$("wallets").children.length;$("mobileFallback").classList.toggle("show",count===0);
+  if(!selected){if(count)setStatus(count+" wallet"+(count===1?"":"s")+" detected","Choose one to connect. Nothing happens without your tap.");else setStatus("No wallet detected","On iPhone, try opening this page inside Phantom or Solflare.")}
+}
+async function updateBalance(){
+  if(!account){$("balance").textContent="—";return}
+  try{
+    const lamports=await connection.getBalance(new PublicKey(account.address),"confirmed");
+    $("balance").textContent=(lamports/LAMPORTS_PER_SOL).toFixed(5)+" SOL";
+  }catch(err){$("balance").textContent="RPC unavailable"}
+}
+function claimKey(){return account?"budborne:devnet-claim:"+account.address:null}
+function restoreClaim(){
+  if(!account)return;
+  const sig=localStorage.getItem(claimKey());
+  if(sig){
+    $("claimResult").classList.add("show");$("claimTitle").textContent="✓ Claim previously planted";
+    $("claimText").textContent=shorten(sig)+" · Solana devnet";$("explorer").href="https://explorer.solana.com/tx/"+sig+"?cluster=devnet";$("explorer").classList.add("show");
+  }else{$("claimResult").classList.remove("show")}
 }
 
-registry.on("register",refresh);
-registry.on("unregister",refresh);
-refresh();
-setTimeout(refresh,700);
-setTimeout(refresh,1800);
+registry.on("register",refresh);registry.on("unregister",refresh);refresh();setTimeout(refresh,700);setTimeout(refresh,1800);
 
 $("sign").onclick=async()=>{
   try{
     if(!selected||!account)throw new Error("Connect a wallet first.");
     const messageText="Budborne Wallet Lab\nProve ownership of "+account.address+"\nOrigin: "+window.location.origin;
-    const message=new TextEncoder().encode(messageText);
-    let signature,publicKey;
-
+    const message=new TextEncoder().encode(messageText);let signature,publicKey;
     if(injectedPhantom){
-      const out=await selected.provider.signMessage(message,"utf8");
-      signature=out.signature;
-      publicKey=out.publicKey?.toBytes?out.publicKey.toBytes():account.publicKey;
+      const out=await selected.provider.signMessage(message,"utf8");signature=out.signature;publicKey=out.publicKey?.toBytes?out.publicKey.toBytes():account.publicKey;
     }else{
-      const feature=selected.features["solana:signMessage"];
-      if(!feature)throw new Error("This wallet does not expose solana:signMessage.");
-      const out=await feature.signMessage({account,message});
-      signature=out[0].signature;
-      publicKey=account.publicKey;
+      const feature=selected.features["solana:signMessage"];if(!feature)throw new Error("This wallet does not expose solana:signMessage.");
+      const out=await feature.signMessage({account,message});signature=out[0].signature;publicKey=account.publicKey;
     }
-
     const verified=!!(publicKey&&nacl.sign.detached.verify(message,new Uint8Array(signature),new Uint8Array(publicKey)));
     $("proofTitle").textContent=verified?"✓ Ownership proved locally":"Signature returned";
     $("proofText").textContent=verified?"The signature matches this public address. No network request was needed to verify it.":"A signature was returned, but this browser could not verify the public-key bytes.";
-    $("signature").textContent="message:\n"+messageText+"\n\nsignature (hex):\n"+hex(signature);
-    $("proof").classList.add("show");
-    setStatus(verified?"Proof verified":"Proof signed",shorten(account.address),true);
+    $("signature").textContent="message:\n"+messageText+"\n\nsignature (hex):\n"+hex(signature);$("proof").classList.add("show");setStatus(verified?"Proof verified":"Proof signed",shorten(account.address),true);
+  }catch(err){setStatus("Signature stopped",err?.message||String(err),true)}
+};
+
+$("refreshBalance").onclick=updateBalance;
+
+$("airdrop").onclick=async()=>{
+  try{
+    if(!account)throw new Error("Connect a wallet first.");
+    $("airdrop").disabled=true;setStatus("Requesting test SOL…","Solana devnet faucets are rate-limited.",true);
+    const pubkey=new PublicKey(account.address);
+    const sig=await connection.requestAirdrop(pubkey,0.02*LAMPORTS_PER_SOL);
+    const latest=await connection.getLatestBlockhash("confirmed");
+    await connection.confirmTransaction({signature:sig,...latest},"confirmed");
+    await updateBalance();setStatus("Test SOL arrived","Devnet only. It has no monetary value.",true);
+  }catch(err){setStatus("Airdrop unavailable",err?.message||String(err),true)}
+  finally{$("airdrop").disabled=!account}
+};
+
+$("claim").onclick=async()=>{
+  try{
+    if(!selected||!account)throw new Error("Connect a wallet first.");
+    $("claim").disabled=true;setStatus("Building Creature Zero claim…","This will be a Solana devnet transaction.",true);
+
+    const owner=new PublicKey(account.address);
+    const latest=await connection.getLatestBlockhash("confirmed");
+    const memoText="BUDBORNE_DEVNET_CLAIM|creature=Creature Zero|owner="+account.address+"|origin="+window.location.origin;
+    const tx=new Transaction({feePayer:owner,recentBlockhash:latest.blockhash});
+    tx.add(new TransactionInstruction({
+      programId:MEMO_PROGRAM,
+      keys:[{pubkey:owner,isSigner:true,isWritable:false}],
+      data:new TextEncoder().encode(memoText)
+    }));
+    const wire=tx.serialize({requireAllSignatures:false,verifySignatures:false});
+    let sig;
+
+    if(injectedPhantom&&selected.provider?.signTransaction){
+      const signed=await selected.provider.signTransaction(tx);
+      sig=await connection.sendRawTransaction(signed.serialize(),{preflightCommitment:"confirmed"});
+      await connection.confirmTransaction({signature:sig,...latest},"confirmed");
+    }else if(selected.features?.["solana:signTransaction"]){
+      const out=await selected.features["solana:signTransaction"].signTransaction({account,transaction:new Uint8Array(wire),chain:"solana:devnet"});
+      const signedBytes=out[0].signedTransaction;
+      sig=await connection.sendRawTransaction(signedBytes,{preflightCommitment:"confirmed"});
+      await connection.confirmTransaction({signature:sig,...latest},"confirmed");
+    }else if(selected.features?.["solana:signAndSendTransaction"]){
+      const out=await selected.features["solana:signAndSendTransaction"].signAndSendTransaction({account,transaction:new Uint8Array(wire),chain:"solana:devnet",options:{commitment:"confirmed"}});
+      sig=bs58.encode(out[0].signature);
+    }else{
+      throw new Error("This wallet cannot sign a Solana transaction through the features it exposed.");
+    }
+
+    localStorage.setItem(claimKey(),sig);
+    $("claimTitle").textContent="✓ Claim planted on devnet";
+    $("claimText").textContent="Creature Zero now has a signed prototype claim receipt from "+shorten(account.address)+". This is a test record, not an NFT.";
+    $("explorer").href="https://explorer.solana.com/tx/"+sig+"?cluster=devnet";$("explorer").classList.add("show");$("claimResult").classList.add("show");
+    setStatus("Devnet claim confirmed",shorten(sig),true);await updateBalance();
   }catch(err){
-    setStatus("Signature stopped",err?.message||String(err),true);
-  }
+    $("claimResult").classList.add("show");$("claimTitle").textContent="Claim did not land";$("claimText").textContent=err?.message||String(err);$("explorer").classList.remove("show");
+    setStatus("Devnet claim stopped",err?.message||String(err),true);
+  }finally{$("claim").disabled=!account}
 };
 
 $("disconnect").onclick=async()=>{
-  try{
-    if(injectedPhantom&&selected?.provider?.disconnect)await selected.provider.disconnect();
-    else if(selected?.features?.["standard:disconnect"])await selected.features["standard:disconnect"].disconnect();
-  }catch(e){}
-  selected=null;account=null;injectedPhantom=false;
-  $("walletName").textContent="No wallet connected";$("address").textContent="—";
-  $("sign").disabled=true;$("disconnect").disabled=true;$("proof").classList.remove("show");
-  refresh();
+  try{if(injectedPhantom&&selected?.provider?.disconnect)await selected.provider.disconnect();else if(selected?.features?.["standard:disconnect"])await selected.features["standard:disconnect"].disconnect()}catch(e){}
+  selected=null;account=null;injectedPhantom=false;$("walletName").textContent="No wallet connected";$("address").textContent="—";
+  $("sign").disabled=true;$("disconnect").disabled=true;$("refreshBalance").disabled=true;$("airdrop").disabled=true;$("claim").disabled=true;$("proof").classList.remove("show");$("claimResult").classList.remove("show");$("balance").textContent="—";refresh();
 };
 </script>
 </body>
