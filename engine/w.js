@@ -1110,7 +1110,18 @@ function tickIsoHome(dt){
   const M=state.isoHome;if(!M.to){isoHomeStep();return}
   M.t+=dt*2.8;const t=clamp(M.t,0,1),e=smoothstep(t);
   M.x=lerp(M.from.x,M.to.x,e);M.y=lerp(M.from.y,M.to.y,e);
-  if(t>=1){M.x=M.to.x;M.y=M.to.y;M.to=null;isoHomeStep()}
+  if(t>=1){
+    M.x=M.to.x;M.y=M.to.y;M.to=null;isoHomeStep();
+    if(!M.to&&!M.path.length)isoHomeArrived(Math.round(M.x),Math.round(M.y));
+  }
+}
+function isoHomeArrived(x,y){
+  if((x===-3||x===-2)&&(y===-1||y===-2)){selectHome("cottage");return}
+  if((x===2||x===3)&&(y===-1||y===-2)){selectHome("store");return}
+  if(ISO_GARDEN.some(([gx,gy])=>Math.abs(gx-x)+Math.abs(gy-y)<=1)){selectHome("garden");return}
+  if(x>=3&&y<=-3){selectHome("trail");return}
+  if(x===-2&&y===1){selectHome("patch");return}
+  state.homeSelected=null;
 }
 function isoHomeGeom(area){
   const tw=clamp(Math.min(area.w*.155,area.h*.115),46,78),th=tw*.5;
@@ -1180,11 +1191,19 @@ function drawIsoHome(area,now,interactive){
       const p=isoPoint(G,cell.x,cell.y);
       registerHit("iso-"+cell.x+"-"+cell.y,{x:p.x-G.tw*.46,y:p.y-G.th*.42,w:G.tw*.92,h:G.th*.84},()=>moveIsoHomeTo(cell.x,cell.y));
     }
-    registerHit("iso-cottage",{x:area.x,y:area.y,w:area.w*.34,h:area.h*.34},()=>selectHome("cottage"));
-    registerHit("iso-store",{x:area.x+area.w*.66,y:area.y,w:area.w*.34,h:area.h*.34},()=>selectHome("store"));
+    const hotspot=(id,x,y,tx,ty,w=1.15,h=1.25)=>{
+      const p=isoPoint(G,x,y);
+      registerHit(id,{x:p.x-G.tw*w*.5,y:p.y-G.th*h,w:G.tw*w,h:G.th*h*1.5},()=>moveIsoHomeTo(tx,ty));
+    };
+    hotspot("iso-cottage",-2.5,-2.5,-2,-1,1.8,2.4);
+    hotspot("iso-store",2.5,-2.5,2,-1,1.8,2.4);
+    hotspot("iso-garden",-2.5,2.5,-2,1,2.1,1.8);
+    hotspot("iso-trail",4,-4,3,-4,1.7,1.5);
+    const bp=isoPoint(G,state.isoHome.x,state.isoHome.y);
+    registerHit("iso-creature",{x:bp.x-G.tw*.4,y:bp.y-G.th*1.3,w:G.tw*.8,h:G.th*1.4},()=>selectHome("patch"));
   }
   text("Garden",area.x+14,area.y+area.h-27,{size:11,weight:850,color:"#cbb58b"});
-  text("tap grass to walk",area.x+area.w-14,area.y+area.h-27,{size:10,weight:700,align:"right",color:"#809486"});
+  text("tap land or a place",area.x+area.w-14,area.y+area.h-27,{size:10,weight:700,align:"right",color:"#809486"});
 }
 
 function homeLayout(w,h,pad,contentY,contentH,W){
@@ -1271,7 +1290,7 @@ function drawHomeDrawer(w,h,pad,u){
 
   const H=state.home||{seeds:0,moist:0,crops:[0,0,0],inventory:{}};
   const W=state.W.layout;
-  const dh=clamp(lerp(29,46,W)*u,170,250);
+  const dh=clamp(lerp(25,42,W)*u,156,228);
   const dw=clamp(lerp(92,42,W)*u,280,w-pad*2);
   const r={
     x:W<.5?pad:w-pad-dw,
