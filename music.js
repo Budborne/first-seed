@@ -6,7 +6,7 @@
     creature:{bpm:72,root:62},
     home:{bpm:86,root:60},
     expedition:{bpm:96,root:57},
-    battle:{bpm:132,root:50}
+    battle:{bpm:118,root:50}
   }[THEME]||{bpm:86,root:60};
 
   let enabled=localStorage.getItem(STORE)==="1";
@@ -99,14 +99,31 @@
     if(b%4===3)bell(81,t+3.25*beat,beat*.65,.015);
   }
   function scheduleBattle(t,b,beat){
-    const roots=[50,50,53,48];
+    const roots=[50,48,53,45];
     const r=roots[b%4];
-    drum(t,true);drum(t+2*beat,false);
-    [0,1,2,3].forEach(i=>tickPerc(t+i*beat+.5*beat,.010));
-    [r,r+7,r+3,r+10].forEach((n,i)=>pluck(n,t+i*beat,beat*.34,.038));
-    const stab=b%2===0?[r+12,r+15,r+19]:[r+10,r+14,r+17];
-    pad(stab,t+1.5*beat,beat*.42,.018);
-    pad(stab,t+3.5*beat,beat*.36,.015);
+
+    // Low, breathing tension instead of a metronomic click.
+    pad([r,r+3,r+7],t,beat*3.85,.014);
+    tone(r-12,t,beat*1.15,"sine",.030,.03,.45);
+    tone(r-12,t+2*beat,beat*1.05,"sine",.026,.03,.42);
+
+    // Uneven drum accents keep urgency without sounding like a turn signal.
+    drum(t,true);
+    drum(t+1.5*beat,false);
+    if(b%2===1)drum(t+3.15*beat,false);
+
+    // A climbing minor figure gives the battle forward motion.
+    const figures=[
+      [r+12,r+15,r+19,r+22],
+      [r+12,r+17,r+15,r+19],
+      [r+12,r+15,r+20,r+19],
+      [r+12,r+19,r+17,r+15]
+    ][b%4];
+    const offsets=[.15,.95,2.15,3.05];
+    figures.forEach((n,i)=>pluck(n,t+offsets[i]*beat,beat*.56,.030));
+
+    // One sustained upper answer every other bar.
+    if(b%2===0)bell(r+27,t+2.55*beat,beat*.95,.014);
   }
   function scheduleBar(t,b){
     const beat=60/CFG.bpm;
@@ -124,16 +141,22 @@
     }
   }
   async function start(){
-    if(started)return;
-    ctx=new (window.AudioContext||window.webkitAudioContext)();
-    master=ctx.createGain();
-    const compressor=ctx.createDynamicsCompressor();
-    master.gain.value=.15;
-    master.connect(compressor);compressor.connect(ctx.destination);
+    if(started)return true;
+    if(!ctx){
+      ctx=new (window.AudioContext||window.webkitAudioContext)();
+      master=ctx.createGain();
+      const compressor=ctx.createDynamicsCompressor();
+      master.gain.value=.15;
+      master.connect(compressor);compressor.connect(ctx.destination);
+    }
     try{await ctx.resume()}catch(e){}
-    if(ctx.state!=="running")return;
+    if(ctx.state!=="running")return false;
     started=true;bar=0;nextBar=ctx.currentTime+.08;
-    scheduler();timer=setInterval(scheduler,350);
+    scheduler();
+    if(timer)clearInterval(timer);
+    timer=setInterval(scheduler,350);
+    paint();
+    return true;
   }
   function stop(){
     started=false;
@@ -151,17 +174,37 @@
   }
   button.addEventListener("click",async function(e){
     e.stopPropagation();
-    enabled=!enabled;localStorage.setItem(STORE,enabled?"1":"0");paint();
+
+    // On iPhone a new document may inherit the preference but not permission
+    // to start its new AudioContext. In that case, one tap wakes it instead
+    // of forcing an off/on cycle.
+    if(enabled&&!started){
+      await start();
+      return;
+    }
+
+    enabled=!enabled;
+    localStorage.setItem(STORE,enabled?"1":"0");
+    paint();
     if(enabled)await start();else stop();
   });
 
   if(enabled){
     start();
-    const unlock=async function(e){
-      if(e.target===button)return;
-      if(enabled&&!started)await start();
-      document.removeEventListener("pointerdown",unlock,true);
+
+    const unlock=async function(){
+      if(!enabled||started)return;
+      const ok=await start();
+      if(ok){
+        document.removeEventListener("pointerdown",unlock,true);
+        document.removeEventListener("touchstart",unlock,true);
+        document.removeEventListener("keydown",unlock,true);
+      }
     };
+
+    // Any normal interaction in the new state can wake its soundtrack.
     document.addEventListener("pointerdown",unlock,true);
+    document.addEventListener("touchstart",unlock,true);
+    document.addEventListener("keydown",unlock,true);
   }
 })();
