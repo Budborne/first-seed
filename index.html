@@ -1,5 +1,317 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#132a20"><title>Budborne: First Seed</title>
-<style>:root{color-scheme:dark;--soil:#132a20;--leaf:#a8d66d;--cream:#f4edcf;--mud:#253d2e}*{box-sizing:border-box}body{margin:0;min-height:100svh;background:radial-gradient(circle at 50% 20%,#294b34,var(--soil) 55%);color:var(--cream);font:16px system-ui,-apple-system,sans-serif;display:grid;place-items:center;padding:20px}main{width:min(520px,100%);text-align:center}.brand{letter-spacing:.25em;font-weight:900;font-size:.8rem;opacity:.75}.card{margin-top:14px;background:#0b1711cc;border:1px solid #ffffff1c;border-radius:28px;padding:24px;box-shadow:0 22px 70px #0008}h1{font-size:clamp(2.2rem,11vw,4rem);margin:.1em 0}.sub{opacity:.72;margin-top:-8px}.plot{height:255px;display:grid;place-items:end center;padding-bottom:26px;position:relative;overflow:hidden}.plot:after{content:"";position:absolute;bottom:0;width:80%;height:55px;background:#503c28;border-radius:50%}.bud{z-index:1;font-size:92px;filter:drop-shadow(0 12px 8px #0006);transform-origin:50% 100%}.bud.happy{animation:bop .45s ease}@keyframes bop{50%{transform:scale(1.12) rotate(-4deg)}}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.stat{background:var(--mud);padding:10px;border-radius:14px}.stat b{display:block;font-size:1.15rem}button{width:100%;margin-top:10px;padding:15px;border:0;border-radius:16px;background:var(--leaf);color:#102014;font-weight:900;font-size:1rem;touch-action:manipulation}button.secondary{background:#314c3a;color:var(--cream)}#msg{min-height:44px;margin:15px 0 5px;display:grid;place-items:center}.tiny{font-size:.75rem;opacity:.5;margin-top:18px}</style></head>
-<body><main><div class="brand">BUDBORNE</div><div class="card"><h1>First Seed 🌱</h1><p class="sub">Creature Zero is awake.</p><div class="plot"><div id="bud" class="bud">🌱</div></div><div class="stats"><div class="stat"><span>Growth</span><b id="growth">0</b></div><div class="stat"><span>Care</span><b id="care">0</b></div><div class="stat"><span>Days</span><b id="days">1</b></div></div><div id="msg">A stubborn little shoot pushes through the soil.</div><button id="water">💧 Water</button><button id="sun" class="secondary">☀️ Give Sun</button></div><div class="tiny">Nothing here is on-chain. Yet. First we prove it's worth caring about.</div>
-<script>const S=JSON.parse(localStorage.getItem("budborne:first-seed")||'{"growth":0,"care":0,"days":1}');const $=id=>document.getElementById(id),messages=["It wiggles. Probably a good sign.","A new leaf uncurls.","It leans toward you.","Tiny roots grip the soil.","Something is growing."];function draw(){$("growth").textContent=S.growth;$("care").textContent=S.care;$("days").textContent=S.days;$("bud").textContent=S.growth>=12?"🌿":"🌱";localStorage.setItem("budborne:first-seed",JSON.stringify(S))}function act(kind){S.care++;S.growth+=kind==="water"?2:1;if(S.care%5===0)S.days++;$("msg").textContent=messages[Math.floor(Math.random()*messages.length)];$("bud").classList.remove("happy");void $("bud").offsetWidth;$("bud").classList.add("happy");draw()}$("water").onclick=()=>act("water");$("sun").onclick=()=>act("sun");draw();</script></main></body></html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#10281d">
+<title>Budborne: First Seed</title>
+<style>
+:root{color-scheme:dark;--bg:#0b1f17;--panel:#0b1711e8;--leaf:#a9db70;--leaf2:#5f9b52;--cream:#f5efcf;--muted:#a8b9a9;--mud:#2a4433;--soil:#5a4028;--danger:#c9926d}
+*{box-sizing:border-box}
+body{margin:0;min-height:100svh;background:radial-gradient(circle at 50% 12%,#274e35 0,#102b20 33%,var(--bg) 72%);color:var(--cream);font:16px system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;padding:calc(18px + env(safe-area-inset-top)) 18px calc(28px + env(safe-area-inset-bottom))}
+main{width:min(540px,100%);margin:auto;text-align:center}
+.brand{letter-spacing:.28em;font-weight:900;font-size:.78rem;opacity:.72}
+.card{margin-top:12px;background:var(--panel);border:1px solid #ffffff18;border-radius:28px;padding:22px;box-shadow:0 24px 70px #0008}
+h1{font-size:clamp(2rem,10vw,3.35rem);margin:.08em 0 .12em}
+.sub{margin:0;color:var(--muted);font-weight:650}
+.stage{display:inline-block;margin-top:9px;padding:6px 10px;border-radius:999px;background:#ffffff0d;border:1px solid #ffffff14;font-size:.78rem;font-weight:800;letter-spacing:.04em}
+.plot{height:245px;display:grid;place-items:end center;position:relative;overflow:hidden;margin:3px -8px 6px}
+.soil{position:absolute;bottom:17px;width:82%;height:52px;background:radial-gradient(ellipse at 50% 25%,#765638,var(--soil) 60%,#3e2b1d);border-radius:50%;box-shadow:inset 0 6px 14px #ffffff08,0 12px 30px #0005}
+.creature{position:absolute;bottom:42px;width:180px;height:170px;transform-origin:50% 100%;filter:drop-shadow(0 12px 10px #0005)}
+.creature.happy{animation:bop .42s ease}
+.creature.sleepy{filter:saturate(.65) drop-shadow(0 12px 10px #0005)}
+@keyframes bop{50%{transform:translateY(-5px) scale(1.035) rotate(-2deg)}}
+.stem{position:absolute;left:88px;bottom:27px;width:8px;height:98px;background:linear-gradient(90deg,#397943,#78b75f);border-radius:9px;transform:rotate(4deg);transform-origin:bottom}
+.leaf{position:absolute;width:55px;height:28px;background:linear-gradient(135deg,#9cda61,#4d994b);border-radius:95% 10% 95% 12%;box-shadow:inset 0 -4px 8px #245b39}
+.leaf.a{left:89px;bottom:103px;transform:rotate(-34deg)}
+.leaf.b{left:47px;bottom:82px;transform:scaleX(-1) rotate(-20deg)}
+.leaf.c{left:91px;bottom:65px;transform:rotate(12deg)}
+.leaf.d{left:44px;bottom:48px;transform:scaleX(-1) rotate(8deg)}
+.bulb{position:absolute;left:57px;bottom:8px;width:78px;height:69px;background:radial-gradient(circle at 45% 25%,#a8d86e,#5d9f50 65%,#366d42);border-radius:52% 48% 46% 54% / 58% 58% 42% 42%;box-shadow:inset 0 -8px 12px #28583a}
+.eye{position:absolute;bottom:40px;width:7px;height:9px;background:#102218;border-radius:50%;z-index:3}
+.eye.l{left:82px}.eye.r{left:105px}
+.mouth{position:absolute;left:91px;bottom:28px;width:9px;height:5px;border-bottom:2px solid #183020;border-radius:50%;z-index:3}
+.rootfoot{position:absolute;bottom:0;width:38px;height:10px;background:#4b793f;border-radius:50%;z-index:-1}
+.rootfoot.l{left:48px;transform:rotate(-11deg)}.rootfoot.r{right:38px;transform:rotate(12deg)}
+.creature[data-stage="seed"] .stem,.creature[data-stage="seed"] .leaf,.creature[data-stage="seed"] .eye,.creature[data-stage="seed"] .mouth,.creature[data-stage="seed"] .rootfoot{display:none}
+.creature[data-stage="seed"] .bulb{width:44px;height:31px;left:70px;bottom:5px;background:linear-gradient(150deg,#8d6742,#5b3f2d);border-radius:70% 35% 70% 35%;transform:rotate(-12deg)}
+.creature[data-stage="sprout"] .bulb,.creature[data-stage="sprout"] .eye,.creature[data-stage="sprout"] .mouth,.creature[data-stage="sprout"] .rootfoot,.creature[data-stage="sprout"] .leaf.c,.creature[data-stage="sprout"] .leaf.d{display:none}
+.creature[data-stage="sprout"] .stem{height:66px;bottom:12px}
+.creature[data-stage="sprout"] .leaf.a{bottom:61px;left:87px}.creature[data-stage="sprout"] .leaf.b{bottom:45px;left:48px}
+.creature[data-stage="shoot"] .bulb,.creature[data-stage="shoot"] .eye,.creature[data-stage="shoot"] .mouth,.creature[data-stage="shoot"] .rootfoot,.creature[data-stage="shoot"] .leaf.d{display:none}
+.creature[data-stage="youngling"] .rootfoot{display:none}
+.creature[data-stage="youngling"] .bulb{width:62px;height:48px;left:65px}
+.creature[data-stage="youngling"] .eye{bottom:31px}.creature[data-stage="youngling"] .mouth{bottom:21px}
+.mood{position:absolute;right:8px;top:15px;font-size:.72rem;font-weight:800;padding:6px 9px;border-radius:999px;background:#0b1711cc;border:1px solid #ffffff14;color:var(--muted)}
+.needs{display:grid;gap:10px;text-align:left;margin:4px 0 15px}
+.needhead{display:flex;justify-content:space-between;font-size:.8rem;font-weight:800;color:var(--muted);margin-bottom:5px}
+.track{height:10px;border-radius:999px;background:#ffffff12;overflow:hidden}
+.fill{height:100%;border-radius:inherit;background:linear-gradient(90deg,var(--leaf2),var(--leaf));transition:width .35s ease}
+.fill.low{background:linear-gradient(90deg,#916046,var(--danger))}
+.growthbox{margin:9px 0 16px;padding:11px 12px;background:var(--mud);border-radius:16px;text-align:left}
+.growthtop{display:flex;justify-content:space-between;gap:10px;font-size:.82rem;font-weight:850;margin-bottom:6px}
+.meta{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
+.stat{background:#ffffff0a;border:1px solid #ffffff0d;padding:10px 6px;border-radius:14px}
+.stat span{display:block;color:var(--muted);font-size:.72rem}.stat b{display:block;font-size:1.05rem;margin-top:2px}
+#msg{min-height:46px;display:grid;place-items:center;margin:5px 0 8px;font-weight:650}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+button{min-height:54px;border:0;border-radius:16px;background:var(--leaf);color:#102014;font-weight:900;font-size:1rem;touch-action:manipulation}
+button.secondary{background:#355641;color:var(--cream)}
+button:active{transform:translateY(1px)}
+.memories{margin-top:14px;text-align:left;border-top:1px solid #ffffff12;padding-top:13px}
+.memories h2{font-size:.78rem;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);margin:0 0 8px}
+.memory{font-size:.82rem;padding:8px 10px;border-radius:12px;background:#ffffff07;margin-top:6px}
+.tiny{font-size:.74rem;color:#8ea491;margin:17px 8px 0;line-height:1.45}
+</style>
+</head>
+<body>
+<main>
+  <div class="brand">BUDBORNE</div>
+  <section class="card">
+    <h1>First Seed 🌱</h1>
+    <p class="sub">Creature Zero</p>
+    <div class="stage" id="stagePill">Seed</div>
+
+    <div class="plot">
+      <div class="mood" id="mood">quiet</div>
+      <div class="soil"></div>
+      <div class="creature" id="creature" data-stage="seed" aria-label="Creature Zero">
+        <div class="stem"></div>
+        <div class="leaf a"></div><div class="leaf b"></div><div class="leaf c"></div><div class="leaf d"></div>
+        <div class="bulb"></div>
+        <div class="eye l"></div><div class="eye r"></div><div class="mouth"></div>
+        <div class="rootfoot l"></div><div class="rootfoot r"></div>
+      </div>
+    </div>
+
+    <div class="needs">
+      <div><div class="needhead"><span>💧 Water</span><span id="waterValue">0%</span></div><div class="track"><div class="fill" id="waterBar"></div></div></div>
+      <div><div class="needhead"><span>☀️ Light</span><span id="sunValue">0%</span></div><div class="track"><div class="fill" id="sunBar"></div></div></div>
+      <div><div class="needhead"><span>♥ Health</span><span id="healthValue">0%</span></div><div class="track"><div class="fill" id="healthBar"></div></div></div>
+    </div>
+
+    <div class="growthbox">
+      <div class="growthtop"><span id="growthLabel">Growth 0</span><span id="nextLabel">Next: Sprout</span></div>
+      <div class="track"><div class="fill" id="growthBar"></div></div>
+    </div>
+
+    <div class="meta">
+      <div class="stat"><span>Care</span><b id="care">0</b></div>
+      <div class="stat"><span>Day</span><b id="days">1</b></div>
+      <div class="stat"><span>State</span><b id="state">Awake</b></div>
+    </div>
+
+    <div id="msg">A stubborn little life is learning the shape of the world.</div>
+    <div class="actions">
+      <button id="water">💧 Water</button>
+      <button id="sun" class="secondary">☀️ Sun</button>
+    </div>
+
+    <div class="memories">
+      <h2>Memory</h2>
+      <div id="memoryList"></div>
+    </div>
+  </section>
+  <div class="tiny">The world is not simulated every second. Time passes, consequences are derived when you return.<br>First we make one life worth caring about.</div>
+</main>
+
+<script>
+(function(){
+  var KEY="budborne:first-seed";
+  var HOUR=3600000, DAY=86400000, now=Date.now();
+
+  var raw={};
+  try{raw=JSON.parse(localStorage.getItem(KEY)||"{}")}catch(e){raw={}}
+
+  function clamp(n,a,b){return Math.max(a,Math.min(b,n))}
+  function makeMemory(text){return {text:text,at:Date.now()}}
+  function migrate(old){
+    if(old.version===2)return old;
+    var oldDays=Math.max(1,Number(old.days)||1);
+    return {
+      version:2,
+      growth:Number(old.growth)||0,
+      care:Number(old.care)||0,
+      water:62,
+      sun:58,
+      health:100,
+      bornAt:now-(oldDays-1)*DAY,
+      lastSeen:now,
+      dormant:false,
+      memories:[makeMemory("Creature Zero remembers the first garden.")]
+    };
+  }
+
+  var S=migrate(raw);
+  if(!Array.isArray(S.memories))S.memories=[];
+  if(!S.bornAt)S.bornAt=now;
+  if(!S.lastSeen)S.lastSeen=now;
+
+  var stages=[
+    {key:"seed",name:"Seed",min:0,next:20},
+    {key:"sprout",name:"Sprout",min:20,next:60},
+    {key:"shoot",name:"Shoot",min:60,next:140},
+    {key:"youngling",name:"Youngling",min:140,next:300},
+    {key:"budborn",name:"Budborn",min:300,next:null}
+  ];
+
+  function stageFor(g){
+    for(var i=stages.length-1;i>=0;i--)if(g>=stages[i].min)return stages[i];
+    return stages[0];
+  }
+
+  function remember(text){
+    if(S.memories.some(function(m){return m.text===text}))return;
+    S.memories.unshift(makeMemory(text));
+    S.memories=S.memories.slice(0,8);
+  }
+
+  function passTime(){
+    var elapsed=Math.max(0,now-S.lastSeen);
+    var hours=Math.min(72,elapsed/HOUR);
+    if(hours<0.01){S.lastSeen=now;return}
+
+    var healthyWaterHours=Math.max(0,(S.water-22)/2.2);
+    var healthySunHours=Math.max(0,(S.sun-20)/1.25);
+    var healthyHours=Math.min(hours,healthyWaterHours,healthySunHours);
+    var stressedHours=Math.max(0,hours-healthyHours);
+
+    if(!S.dormant){
+      var vigor=clamp(S.health/100,.25,1);
+      S.growth+=healthyHours*1.35*vigor;
+    }
+
+    S.health=clamp(S.health+(healthyHours*.45)-(stressedHours*2.3),0,100);
+    S.water=clamp(S.water-hours*2.2,0,100);
+    S.sun=clamp(S.sun-hours*1.25,0,100);
+
+    if(S.health<=10&&!S.dormant){
+      S.dormant=true;
+      remember("When care ran thin, Creature Zero folded inward and went dormant.");
+    }
+
+    S.lastSeen=now;
+  }
+
+  passTime();
+
+  var $=function(id){return document.getElementById(id)};
+  var msg=$("msg"), creature=$("creature");
+  var beforeStage=stageFor(S.growth).key;
+
+  function mood(){
+    if(S.dormant)return "dormant";
+    if(S.health<35)return "weary";
+    if(S.water<28)return "thirsty";
+    if(S.sun<25)return "light-hungry";
+    if(S.water>82)return "well-watered";
+    if(S.health>88&&S.water>40&&S.sun>40)return "content";
+    return "curious";
+  }
+
+  function bar(id,value){
+    var el=$(id);
+    el.style.width=clamp(value,0,100)+"%";
+    el.classList.toggle("low",value<25);
+  }
+
+  function save(){localStorage.setItem(KEY,JSON.stringify(S))}
+
+  function render(){
+    var st=stageFor(S.growth);
+    creature.dataset.stage=st.key;
+    creature.classList.toggle("sleepy",S.dormant||S.health<35);
+    $("stagePill").textContent=st.name;
+    $("mood").textContent=mood();
+
+    $("waterValue").textContent=Math.round(S.water)+"%";
+    $("sunValue").textContent=Math.round(S.sun)+"%";
+    $("healthValue").textContent=Math.round(S.health)+"%";
+    bar("waterBar",S.water);bar("sunBar",S.sun);bar("healthBar",S.health);
+
+    $("growthLabel").textContent="Growth "+Math.floor(S.growth);
+    if(st.next){
+      var pct=((S.growth-st.min)/(st.next-st.min))*100;
+      bar("growthBar",pct);
+      $("nextLabel").textContent="Next: "+stages[stages.indexOf(st)+1].name+" · "+Math.ceil(st.next-S.growth);
+    }else{
+      bar("growthBar",100);
+      $("nextLabel").textContent="Creature Zero";
+    }
+
+    $("care").textContent=S.care;
+    $("days").textContent=Math.max(1,Math.floor((now-S.bornAt)/DAY)+1);
+    $("state").textContent=S.dormant?"Dormant":"Awake";
+
+    $("memoryList").innerHTML=S.memories.slice(0,3).map(function(m){return '<div class="memory">'+m.text+'</div>'}).join("")||'<div class="memory">No memories yet. That will change.</div>';
+    save();
+  }
+
+  function bounce(){
+    creature.classList.remove("happy");
+    void creature.offsetWidth;
+    creature.classList.add("happy");
+  }
+
+  function maybeStageMemory(oldKey){
+    var st=stageFor(S.growth);
+    if(st.key!==oldKey){
+      remember("Creature Zero became a "+st.name+".");
+      msg.textContent="Something changed. "+st.name+".";
+    }
+  }
+
+  function care(kind){
+    if(S.dormant){
+      if(kind==="water"&&S.water<86){S.water=clamp(S.water+24,0,100);S.health=clamp(S.health+4,0,100);S.care++;msg.textContent="The dry roots take a careful drink."}
+      else if(kind==="sun"&&S.sun<86){S.sun=clamp(S.sun+24,0,100);S.health=clamp(S.health+4,0,100);S.care++;msg.textContent="Warmth reaches whatever is sleeping inside."}
+      else{msg.textContent=kind==="water"?"The soil is already wet enough.":"It has enough light for now."}
+      if(S.health>=24&&S.water>=28&&S.sun>=28){
+        S.dormant=false;
+        remember("Creature Zero woke from dormancy.");
+        msg.textContent="A tiny movement. Creature Zero wakes.";
+      }
+      bounce();render();return;
+    }
+
+    var oldKey=stageFor(S.growth).key;
+    var useful=false;
+    if(kind==="water"){
+      if(S.water>=86){msg.textContent="It turns a leaf away. The soil is wet enough."}
+      else{
+        if(!S.memories.some(function(m){return m.text==="First drink."}))remember("First drink.");
+        S.water=clamp(S.water+24,0,100);useful=true;
+        msg.textContent=["The roots loosen beneath the soil.","A quiet shiver runs up the stem.","Water disappears into the earth."][S.care%3];
+      }
+    }else{
+      if(S.sun>=86){msg.textContent="It has stored enough light for now."}
+      else{
+        if(!S.memories.some(function(m){return m.text==="First sunlight."}))remember("First sunlight.");
+        S.sun=clamp(S.sun+24,0,100);useful=true;
+        msg.textContent=["It leans toward the warmth.","A leaf slowly turns toward the light.","For a moment, it seems taller."][S.care%3];
+      }
+    }
+
+    if(useful){
+      S.care++;
+      S.growth+=1.5;
+      if(S.water>=30&&S.sun>=30)S.health=clamp(S.health+1.5,0,100);
+      if(S.care===12)remember("It began reacting before your hand reached the controls.");
+      if(S.care===25)remember("Its roots have started choosing their own paths.");
+      maybeStageMemory(oldKey);
+      bounce();
+    }
+    render();
+  }
+
+  $("water").addEventListener("click",function(){care("water")});
+  $("sun").addEventListener("click",function(){care("sun")});
+
+  var afterStage=stageFor(S.growth).key;
+  if(afterStage!==beforeStage)remember("Creature Zero changed while you were away.");
+
+  render();
+})();
+</script>
+</body>
+</html>
