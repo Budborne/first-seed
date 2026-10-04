@@ -14,19 +14,23 @@
 
   const style=document.createElement("style");
   style.textContent=`
-    .bud-music{position:fixed;right:16px;bottom:max(18px,env(safe-area-inset-bottom));z-index:9999;width:48px;height:48px;border-radius:50%;border:1px solid #ffffff26;background:#09150fe8;color:#c9d8c9;box-shadow:0 8px 24px #0008;font:900 1.15rem system-ui;display:grid;place-items:center;backdrop-filter:blur(8px)}
+    .bud-music{position:fixed;right:14px;bottom:calc(14px + env(safe-area-inset-bottom));z-index:9999;min-width:92px;height:46px;padding:0 14px;border-radius:999px;border:1px solid #ffffff26;background:#09150fe8;color:#c9d8c9;box-shadow:0 8px 24px #0008;font:900 1.15rem system-ui;display:grid;place-items:center;backdrop-filter:blur(8px)}
     .bud-music.on{color:#dff6a9;border-color:#a9db7060;box-shadow:0 0 0 4px #a9db7017,0 8px 24px #0008}
     .bud-music:active{transform:translateY(1px)}
   `;
   document.head.appendChild(style);
 
-  const button=document.createElement("button");
+  let button=document.getElementById("budMusicControl");
+  if(!button){
+    button=document.createElement("button");
+    button.id="budMusicControl";
+    button.type="button";
+    document.body.appendChild(button);
+  }
   button.className="bud-music"+(enabled?" on":"");
-  button.type="button";
   button.setAttribute("aria-label","Toggle "+(TITLES[THEME]||"music"));
   button.title=(TITLES[THEME]||"Music")+" · tap to toggle";
-  button.textContent=enabled?"♫":"♩";
-  document.body.appendChild(button);
+  button.textContent=enabled?"♫ Music":"♩ Music";
 
   function midi(n){return 440*Math.pow(2,(n-69)/12)}
   function destination(){
@@ -142,7 +146,7 @@
   }
   function paint(){
     button.classList.toggle("on",enabled);
-    button.textContent=enabled?"♫":"♩";
+    button.textContent=enabled?"♫ Music":"♩ Music";
     button.title=(TITLES[THEME]||"Music")+" · "+(enabled?"on":"off");
   }
   button.addEventListener("click",async function(e){
