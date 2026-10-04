@@ -3,6 +3,8 @@ const ctx=canvas.getContext("2d",{alpha:false});
 
 const KEY="budborne:first-seed";
 const HOME_KEY="budborne:home-v1";
+const EXP_KEY="budborne:expedition-v2";
+const BATTLE_RESULT_KEY="budborne:battle-result";
 const HOUR=3600000;
 
 const STAGES=[
@@ -13,12 +15,70 @@ const STAGES=[
   {key:"budborn",name:"Budborn",min:120,next:null}
 ];
 
+const EXP_ENCOUNTERS=[
+  {
+    title:"Glassleaf thicket",
+    text:"A curtain of glass-thin leaves blocks the trail. They chime when the breeze moves through them.",
+    choices:[
+      {label:"Harvest carefully",hint:"+ Wild Seed · +1.2h",time:1.2,loot:"wildSeed",result:"You work around the brittle stems and find a viable seed tucked beneath the roots."},
+      {label:"Listen first",hint:"Slower · safer clue",time:.9,result:"You wait until the ringing changes. A narrow opening becomes obvious when the wind shifts."},
+      {label:"Push through",hint:"Fast · may cost vigor",time:.45,risk:.35,result:"You shoulder through before the leaves can settle around you."}
+    ]
+  },
+  {
+    title:"Amber bark",
+    text:"A split limb sweats amber resin. Fresh claw-like marks score the bark above it, but nothing moves nearby.",
+    choices:[
+      {label:"Scrape the resin",hint:"+ Amber Resin · +1.1h",time:1.1,loot:"resin",result:"You collect a sticky ribbon of amber resin and wrap it in broad leaves."},
+      {label:"Study the marks",hint:"+0.6h · avoid trouble",time:.6,result:"The marks are old. Whatever made them has already moved deeper into the Hollow."},
+      {label:"Keep moving",hint:"+0.3h · no loot",time:.3,result:"You leave the resin where it is. Some things are allowed to remain mysteries."}
+    ]
+  },
+  {
+    title:"Cold spring",
+    text:"Clear water wells from black roots and vanishes beneath the moss. Creature Zero gives the smallest possible twitch.",
+    choices:[
+      {label:"Rest beside spring",hint:"Restore 1 vigor · +1.0h",time:1,heal:1,result:"The cold water and quiet do their work. You leave steadier than you arrived."},
+      {label:"Search waterline",hint:"Chance of Dewstone · +0.8h",time:.8,chanceLoot:"dewstone",chance:.6,result:"You sift the pebbles where the spring disappears beneath the roots."},
+      {label:"Move on",hint:"+0.25h",time:.25,result:"You take a drink and keep your momentum."}
+    ]
+  },
+  {
+    title:"Hookthorn crossing",
+    text:"Hooked vines have knitted themselves across the trail. No enemy, just a plant with opinions about trespassing.",
+    choices:[
+      {label:"Go around",hint:"Safe · +1.2h",time:1.2,result:"The detour is slow, muddy, and completely uneventful. Excellent."},
+      {label:"Cut a path",hint:"+0.7h · small risk",time:.7,risk:.2,result:"You open a narrow lane through the thorns and mark it for the return trip."},
+      {label:"Force through",hint:"Fast · high risk",time:.3,risk:.55,result:"You commit to the gap before the vines can convince you otherwise."}
+    ]
+  },
+  {
+    title:"Dewstone hollow",
+    text:"A pale stone glows beneath wet moss. Pulling it free would take time and leave you exposed in the open hollow.",
+    choices:[
+      {label:"Pry it free",hint:"+ Dewstone · +1.3h",time:1.3,loot:"dewstone",result:"The stone finally gives with a wet pop. It is colder than the spring water."},
+      {label:"Search loose chips",hint:"Chance of Dewstone · +0.7h",time:.7,chanceLoot:"dewstone",chance:.45,result:"You search the edges for something easier to carry."},
+      {label:"Leave it",hint:"+0.2h",time:.2,result:"You memorize the place and keep going."}
+    ]
+  },
+  {
+    title:"Root bridge",
+    text:"Living roots span a narrow ravine. The bridge flexes when you test it.",
+    choices:[
+      {label:"Cross carefully",hint:"Safe · +0.9h",time:.9,result:"One measured step at a time. The roots hold."},
+      {label:"Inspect underneath",hint:"Chance of Wild Seed · +1.1h",time:1.1,chanceLoot:"wildSeed",chance:.55,result:"You climb low enough to inspect the tangled underside before crossing."},
+      {label:"Hurry across",hint:"Fast · moderate risk",time:.35,risk:.4,result:"You decide confidence and good footing are close enough cousins."}
+    ]
+  }
+];
+
 const state={
   view:{w:0,h:0,dpr:1},
   W:{layout:0,scene:0},
   sceneTarget:0,
   lastFrame:performance.now(),
   home:null,
+  expedition:null,
   homeSelected:null,
   homeMessage:"Tap somewhere in the clearing.",
   pointer:{x:0,y:0,down:false},
@@ -377,6 +437,236 @@ function checkStores(){
   state.homeMessage="Seeds: "+(H.seeds||0)+" · Amber Resin: "+(I.resin||0)+" · Dewstone: "+(I.dewstone||0)+".";
 }
 
+function expeditionDefaults(){
+  return {
+    depth:0,
+    time:0,
+    vigor:3,
+    loot:{wildSeed:0,resin:0,dewstone:0},
+    finished:false,
+    encounter:null,
+    lastEncounter:null,
+    battlePending:false,
+    battleTested:false,
+    eventTitle:"At the trailhead",
+    eventText:"The clearing is still visible behind you. Somewhere ahead, the Hollow is dripping, ringing, growing."
+  };
+}
+
+function saveExpedition(){
+  const R=state.expedition;
+  if(!R)return;
+  if(R.finished)sessionStorage.removeItem(EXP_KEY);
+  else sessionStorage.setItem(EXP_KEY,JSON.stringify(R));
+}
+
+function loadExpedition(){
+  let R={};
+  try{R=JSON.parse(sessionStorage.getItem(EXP_KEY)||"{}")}catch(e){}
+  R={...expeditionDefaults(),...R,loot:{...expeditionDefaults().loot,...(R.loot||{})}};
+  if(R.finished||R.depth>=5){
+    sessionStorage.removeItem(EXP_KEY);
+    R=expeditionDefaults();
+  }
+  state.expedition=R;
+  consumeBattleResult();
+  saveExpedition();
+}
+
+function lootName(k){
+  return {wildSeed:"Wild Seed",resin:"Amber Resin",dewstone:"Dewstone"}[k]||k;
+}
+
+function expeditionLootText(){
+  const R=state.expedition;
+  const parts=[];
+  for(const k of ["wildSeed","resin","dewstone"]){
+    if(R.loot[k])parts.push(lootName(k)+" ×"+R.loot[k]);
+  }
+  return parts.length?parts.join(" · "):"Pack empty";
+}
+
+function randomExpeditionEncounterIndex(){
+  const pool=EXP_ENCOUNTERS.map((e,i)=>i).filter(i=>EXP_ENCOUNTERS[i].title!==state.expedition.lastEncounter);
+  return pool[Math.floor(Math.random()*pool.length)];
+}
+
+function beginExpeditionEncounter(){
+  const R=state.expedition;
+  if(!R||R.finished)return;
+
+  if(stageFor(state.creature.growth).key==="budborn"&&!R.battleTested){
+    R.battlePending=true;
+    R.encounter={type:"battle"};
+    R.eventTitle="Something moves in the bramble";
+    R.eventText="A Bramblejaw steps onto the trail. Creature Zero is finally old enough to answer.";
+    saveExpedition();
+    return;
+  }
+
+  const index=randomExpeditionEncounterIndex();
+  const e=EXP_ENCOUNTERS[index];
+  R.encounter={type:"wild",index};
+  R.lastEncounter=e.title;
+  R.eventTitle=e.title;
+  R.eventText=e.text;
+  saveExpedition();
+}
+
+function avoidExpeditionBattle(){
+  const R=state.expedition;
+  R.battlePending=false;
+  R.battleTested=true;
+  R.time+=.4;
+  R.encounter=null;
+  R.eventTitle="You give it the trail";
+  R.eventText="Bramblejaw watches you back away, then disappears into the brush.";
+  saveExpedition();
+}
+
+function startBattle(){
+  const R=state.expedition;
+  R.battlePending=true;
+  saveExpedition();
+  window.location.href="./battle.html";
+}
+
+function resolveExpeditionChoice(choiceIndex){
+  const R=state.expedition;
+  if(!R||!R.encounter||R.encounter.type!=="wild")return;
+  const e=EXP_ENCOUNTERS[R.encounter.index];
+  const choice=e.choices[choiceIndex];
+  if(!choice)return;
+
+  R.time+=choice.time;
+  let result=choice.result;
+
+  if(choice.loot){
+    R.loot[choice.loot]++;
+    result+=" You gain "+lootName(choice.loot)+".";
+  }
+  if(choice.chanceLoot&&Math.random()<choice.chance){
+    R.loot[choice.chanceLoot]++;
+    result+=" You find "+lootName(choice.chanceLoot)+".";
+  }
+  if(choice.heal){
+    const before=R.vigor;
+    R.vigor=Math.min(3,R.vigor+choice.heal);
+    if(R.vigor>before)result+=" Vigor restored.";
+  }
+  if(choice.risk&&Math.random()<choice.risk){
+    R.vigor=Math.max(0,R.vigor-1);
+    result+=" The shortcut costs 1 vigor.";
+  }
+
+  R.depth++;
+  R.encounter=null;
+  R.eventTitle=e.title+" · resolved";
+  R.eventText=result;
+
+  if(R.vigor<=0){
+    finishExpedition(false,true);
+    return;
+  }
+
+  if(R.depth>=5){
+    R.loot.wildSeed++;
+    R.eventTitle="The Heartroot cache";
+    R.eventText="You reach a root-wrapped hollow full of old seed husks. One living seed remains. The expedition is complete.";
+    finishExpedition(true,false);
+    return;
+  }
+
+  saveExpedition();
+}
+
+function consumeBattleResult(){
+  const R=state.expedition;
+  if(!R||!R.battlePending)return;
+  let B=null;
+  try{B=JSON.parse(sessionStorage.getItem(BATTLE_RESULT_KEY)||"null")}catch(e){}
+  if(!B)return;
+
+  sessionStorage.removeItem(BATTLE_RESULT_KEY);
+  R.battlePending=false;
+  R.battleTested=true;
+  R.encounter=null;
+  R.time+=Number(B.trailTime)||0;
+  if(B.loot&&B.loot.resin)R.loot.resin+=B.loot.resin;
+
+  if(B.victory){
+    R.depth++;
+    R.eventTitle="Bramblejaw defeated";
+    R.eventText="Creature Zero won its first battle. The trail opens again, and Amber Resin has been added to the pack.";
+  }else if(B.mutual){
+    R.vigor=Math.max(0,R.vigor-1);
+    R.depth++;
+    R.eventTitle="Both went down";
+    R.eventText="Creature Zero dropped Bramblejaw but collapsed to its thorns. You recover the resin, lose 1 expedition vigor, and the trail is clear.";
+  }else{
+    R.vigor=Math.max(0,R.vigor-1);
+    R.eventTitle="Bramblejaw held the trail";
+    R.eventText="Creature Zero was forced back. The loss costs 1 expedition vigor, but the run is still alive.";
+  }
+
+  if(R.vigor<=0){
+    finishExpedition(false,true);
+    return;
+  }
+  if(R.depth>=5){
+    R.loot.wildSeed++;
+    R.eventTitle="The Heartroot cache";
+    R.eventText="Beyond the battle, the root-wrapped cache waits. One living seed remains.";
+    finishExpedition(true,false);
+    return;
+  }
+  saveExpedition();
+}
+
+function finishExpedition(success,forced){
+  const R=state.expedition;
+  if(!R||R.finished)return;
+
+  const factor=success?1:(forced?.25:.4);
+  const passed=Math.max(.25,R.time*factor);
+
+  advanceHome(passed);
+
+  const H=state.home;
+  if(!H.inventory)H.inventory={wildSeed:0,resin:0,dewstone:0};
+  for(const k of Object.keys(R.loot)){
+    H.inventory[k]=(H.inventory[k]||0)+R.loot[k];
+  }
+  if(R.loot.wildSeed)H.seeds=(H.seeds||0)+R.loot.wildSeed;
+  H.lastExpedition={success,forced,trailTime:R.time,homeTime:passed,loot:{...R.loot},at:Date.now()};
+  saveHome();
+
+  R.finished=true;
+  R.success=success;
+  R.forced=forced;
+  R.homeTime=passed;
+  R.encounter=null;
+
+  if(success){
+    R.eventText+=" Home advances "+passed.toFixed(1)+" hours while you are away.";
+  }else{
+    R.eventTitle=forced?"Forced retreat":"Early retreat";
+    R.eventText=(forced?"The Hollow takes the last of your expedition vigor.":"You decide the pack is worth more than another stretch.")+" Only "+passed.toFixed(1)+" hours pass back at home.";
+  }
+  saveExpedition();
+}
+
+function returnFromExpedition(){
+  const R=state.expedition;
+  if(!R.finished){
+    finishExpedition(false,false);
+    return;
+  }
+  state.expedition=expeditionDefaults();
+  sessionStorage.removeItem(EXP_KEY);
+  goScene(1);
+}
+
 function hangout(){
   const S=state.creature;
   const since=state.worldNow-S.lastBondWorldHours;
@@ -544,8 +834,8 @@ function drawCreature(panel,now){
 }
 
 function goScene(target){
-  state.sceneTarget=target?1:0;
-  if(!target)state.homeSelected=null;
+  state.sceneTarget=clamp(Number(target)||0,0,2);
+  if(state.sceneTarget!==1)state.homeSelected=null;
   state.pressed=null;
 }
 
@@ -680,9 +970,174 @@ function drawHomeDrawer(w,h,pad,u){
     drawButton("stores",left,"Check stores",checkStores,{fill:"#355641",size:13});
     drawButton("craft",right,"Crafting bench",()=>state.homeMessage="Nothing to craft yet. The bench exists mostly because future-you insisted.",{fill:"#24352b",size:12});
   }else if(state.homeSelected==="trail"){
-    drawButton("expedition",left,"Enter Mossglass",()=>{window.location.href="./expedition.html"},{fill:"#496047",size:13});
+    drawButton("expedition",left,"Enter Mossglass",()=>goScene(2),{fill:"#496047",size:13});
     drawButton("scout",right,"Scout nearby · 2h",scoutTrail,{fill:"#355641",size:12});
   }
+}
+
+function expeditionLayout(w,h,pad,contentY,contentH,W){
+  const area={x:pad,y:contentY,w:w-pad*2,h:contentH};
+  const portraitRoute={x:area.x,y:area.y,w:area.w,h:area.h*.39};
+  const portraitInfo={x:area.x,y:area.y+area.h*.41,w:area.w,h:area.h*.59};
+  const wideRoute={x:area.x,y:area.y,w:area.w*.48,h:area.h};
+  const wideInfo={x:area.x+area.w*.50,y:area.y,w:area.w*.50,h:area.h};
+  const route=mixRect(portraitRoute,wideRoute,W);
+  const info=mixRect(portraitInfo,wideInfo,W);
+  const companionPortrait={x:route.x+12,y:route.y+route.h*.55,w:route.w*.34,h:route.h*.39};
+  const companionWide={x:route.x+12,y:route.y+route.h*.61,w:route.w*.40,h:route.h*.34};
+  return {route,info,companion:mixRect(companionPortrait,companionWide,W)};
+}
+
+function drawRouteNode(x,y,r,label,done,here){
+  ctx.beginPath();
+  ctx.arc(x,y,r,0,Math.PI*2);
+  ctx.fillStyle=done?"#4d7445":"#0b1711";
+  ctx.fill();
+  ctx.lineWidth=here?3:2;
+  ctx.strokeStyle=here?"#e0c77c":done?"#a9db70":"#ffffff2b";
+  ctx.stroke();
+  text(label,x,y,{size:Math.max(8,r*.75),weight:900,align:"center",baseline:"middle",color:"#eef3df"});
+  if(here){
+    ctx.beginPath();
+    ctx.arc(x,y,r+5,0,Math.PI*2);
+    ctx.strokeStyle="#e0c77c33";
+    ctx.lineWidth=5;
+    ctx.stroke();
+  }
+}
+
+function drawExpeditionRoute(r,R){
+  fillRound(r,"#10271a",20);
+  strokeRound(r,"#ffffff14",20,1);
+
+  text("Mossglass Hollow",r.x+14,r.y+12,{
+    size:fitText("Mossglass Hollow",r.w-28,{maxSize:15,minSize:10,weight:900}),
+    weight:900,color:"#eef3df"
+  });
+
+  const pts=[
+    [.58,.84],[.69,.69],[.53,.54],[.68,.39],[.50,.24],[.64,.11]
+  ].map(p=>({x:r.x+r.w*p[0],y:r.y+r.h*p[1]}));
+
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x,pts[0].y);
+  for(let i=1;i<pts.length;i++)ctx.lineTo(pts[i].x,pts[i].y);
+  ctx.strokeStyle="#b99d6755";
+  ctx.lineWidth=Math.max(5,Math.min(r.w,r.h)*.035);
+  ctx.lineCap="round";
+  ctx.lineJoin="round";
+  ctx.stroke();
+
+  const nr=clamp(Math.min(r.w,r.h)*.045,10,17);
+  pts.forEach((p,i)=>drawRouteNode(
+    p.x,p.y,nr,
+    i===0?"⌂":i===5?"✦":String(i),
+    i<R.depth,
+    i===Math.min(R.depth,5)
+  ));
+}
+
+function drawMiniStat(r,label,value,size){
+  fillRound(r,"#ffffff08",10);
+  text(label,r.x+r.w/2,r.y+6,{size:size*.76,weight:700,align:"center",color:"#809486"});
+  text(value,r.x+r.w/2,r.y+r.h-7,{size,weight:900,align:"center",baseline:"bottom",color:"#eef3df"});
+}
+
+function drawChoiceButton(id,r,choice,action){
+  const hot=state.pointer.down&&state.pressed===id&&inside(state.pointer,r);
+  fillRound(r,hot?"#bce77f":"#31503d",11);
+  strokeRound(r,hot?"#efffc6":"#ffffff18",11,1);
+
+  const labelSize=fitText(choice.label,r.w-16,{maxSize:13,minSize:9,weight:850});
+  const hintSize=fitText(choice.hint||"",r.w-16,{maxSize:10,minSize:8,weight:650});
+  text(choice.label,r.x+9,r.y+8,{size:labelSize,weight:850,color:hot?"#102218":"#eef3df"});
+  if(choice.hint)text(choice.hint,r.x+9,r.y+r.h-8,{size:hintSize,weight:650,baseline:"bottom",color:hot?"#24452c":"#8fa394"});
+  registerHit(id,r,action);
+}
+
+function drawExpeditionInfo(r,R,u,interactive){
+  fillRound(r,"#0d1c14",20);
+  strokeRound(r,"#ffffff14",20,1);
+
+  const ip=clamp(3.2*u,10,16);
+  const inner={x:r.x+ip,y:r.y+ip,w:r.w-ip*2,h:r.h-ip*2};
+  const small=clamp(2.6*u,9,12);
+  const statGap=6;
+  const statH=clamp(8.2*u,31,39);
+  const statW=(inner.w-statGap*2)/3;
+  drawMiniStat({x:inner.x,y:inner.y,w:statW,h:statH},"Depth",R.depth+" / 5",small);
+  drawMiniStat({x:inner.x+statW+statGap,y:inner.y,w:statW,h:statH},"Trail",R.time.toFixed(1)+"h",small);
+  drawMiniStat({x:inner.x+(statW+statGap)*2,y:inner.y,w:statW,h:statH},"Vigor",R.vigor+" ♥",small);
+
+  const logY=inner.y+statH+8;
+  const logH=clamp(lerp(16,29,state.W.layout)*u,82,105);
+  const logR={x:inner.x,y:logY,w:inner.w,h:logH};
+  fillRound(logR,"#07130d",12);
+  strokeRound(logR,"#ffffff10",12,1);
+
+  const titleSize=fitText(R.eventTitle||"Mossglass Hollow",logR.w-20,{maxSize:13,minSize:9,weight:900});
+  text(R.eventTitle||"Mossglass Hollow",logR.x+10,logR.y+9,{size:titleSize,weight:900,color:"#eef3df"});
+
+  const bodySize=clamp(2.25*u,8.5,11);
+  const lines=wrapText(R.eventText||"",logR.w-20,{size:bodySize,weight:650});
+  const lineH=bodySize*1.22;
+  lines.slice(0,4).forEach((line,i)=>text(line,logR.x+10,logR.y+27+i*lineH,{
+    size:bodySize,weight:650,color:"#94a797"
+  }));
+
+  text(expeditionLootText(),logR.x+10,logR.y+logR.h-8,{
+    size:fitText(expeditionLootText(),logR.w-20,{maxSize:9,minSize:7.5,weight:750}),
+    weight:750,baseline:"bottom",color:"#c1d2b9"
+  });
+
+  if(!interactive)return;
+
+  const actionTop=logR.y+logR.h+8;
+  const available=Math.max(42,inner.y+inner.h-actionTop);
+
+  if(R.finished){
+    drawButton("exp-return",{x:inner.x,y:inner.y+inner.h-44,w:inner.w,h:44},"🏡 Return to clearing",returnFromExpedition,{fill:"#41614c",size:13});
+    return;
+  }
+
+  if(R.encounter&&R.encounter.type==="battle"){
+    const gap=7,bh=Math.min(48,available);
+    const half=(inner.w-gap)/2;
+    drawButton("battle-go",{x:inner.x,y:inner.y+inner.h-bh,w:half,h:bh},"⚔️ Stand ground",startBattle,{fill:"#5b4638",size:12});
+    drawButton("battle-back",{x:inner.x+half+gap,y:inner.y+inner.h-bh,w:half,h:bh},"Back away",avoidExpeditionBattle,{fill:"#355641",size:12});
+    return;
+  }
+
+  if(R.encounter&&R.encounter.type==="wild"){
+    const e=EXP_ENCOUNTERS[R.encounter.index];
+    const gap=6;
+    if(state.W.layout<.5){
+      const bh=Math.min(43,(available-gap*2)/3);
+      const start=inner.y+inner.h-(bh*3+gap*2);
+      e.choices.forEach((choice,i)=>drawChoiceButton(
+        "choice-"+i,
+        {x:inner.x,y:start+i*(bh+gap),w:inner.w,h:bh},
+        choice,
+        ()=>resolveExpeditionChoice(i)
+      ));
+    }else{
+      const bw=(inner.w-gap*2)/3;
+      const bh=Math.min(52,available);
+      const y=inner.y+inner.h-bh;
+      e.choices.forEach((choice,i)=>drawChoiceButton(
+        "choice-"+i,
+        {x:inner.x+i*(bw+gap),y,w:bw,h:bh},
+        choice,
+        ()=>resolveExpeditionChoice(i)
+      ));
+    }
+    return;
+  }
+
+  const gap=7,bh=Math.min(46,available);
+  const half=(inner.w-gap)/2;
+  drawButton("exp-advance",{x:inner.x,y:inner.y+inner.h-bh,w:half,h:bh},R.depth?"Enter stretch "+(R.depth+1):"Enter first stretch",beginExpeditionEncounter,{fill:"#496047",size:12});
+  drawButton("exp-retreat",{x:inner.x+half+gap,y:inner.y+inner.h-bh,w:half,h:bh},"Return home",returnFromExpedition,{fill:"#355641",size:12});
 }
 
 function drawCarePanel(infoPanel,u,interactive){
@@ -756,7 +1211,12 @@ function draw(){
   if(state.W.scene<state.sceneTarget)state.W.scene=Math.min(state.sceneTarget,state.W.scene+sceneStep);
   else if(state.W.scene>state.sceneTarget)state.W.scene=Math.max(state.sceneTarget,state.W.scene-sceneStep);
 
-  const T=smoothstep(state.W.scene);
+  const H=smoothstep(clamp(state.W.scene,0,1));
+  const E=smoothstep(clamp(state.W.scene-1,0,1));
+  const creatureAlpha=1-H;
+  const homeAlpha=H*(1-E);
+  const expeditionAlpha=E;
+
   const u=Math.min(w,h)/100;
   const pad=clamp(3.5*u,12,22);
   const headerH=clamp(13*u,52,68);
@@ -768,15 +1228,21 @@ function draw(){
   state.buttons=[];
 
   const titleSize=clamp(4.1*u,15,23);
-  ctx.save();
-  ctx.globalAlpha=1-T;
-  text("CREATURE ZERO",pad,pad,{size:titleSize,weight:900,color:"#eef3df"});
-  ctx.restore();
-
-  ctx.save();
-  ctx.globalAlpha=T;
-  text("HOME CLEARING",pad,pad,{size:titleSize,weight:900,color:"#eef3df"});
-  ctx.restore();
+  if(creatureAlpha>.001){
+    ctx.save();ctx.globalAlpha=creatureAlpha;
+    text("CREATURE ZERO",pad,pad,{size:titleSize,weight:900,color:"#eef3df"});
+    ctx.restore();
+  }
+  if(homeAlpha>.001){
+    ctx.save();ctx.globalAlpha=homeAlpha;
+    text("HOME CLEARING",pad,pad,{size:titleSize,weight:900,color:"#eef3df"});
+    ctx.restore();
+  }
+  if(expeditionAlpha>.001){
+    ctx.save();ctx.globalAlpha=expeditionAlpha;
+    text("MOS SGLASS HOLLOW".replace(" ",""),pad,pad,{size:titleSize,weight:900,color:"#eef3df"});
+    ctx.restore();
+  }
 
   text(
     "L "+W.toFixed(3)+" · S "+state.W.scene.toFixed(3),
@@ -789,8 +1255,10 @@ function draw(){
   const navR={x:w-pad-navW,y:pad,w:navW,h:navH};
   if(state.W.scene<.015&&state.sceneTarget===0){
     drawButton("to-home",navR,"🏡 Home",()=>goScene(1),{fill:"#365442",size:13});
-  }else if(state.W.scene>.985&&state.sceneTarget===1){
+  }else if(Math.abs(state.W.scene-1)<.015&&state.sceneTarget===1){
     drawButton("to-creature",navR,"🌿 Creature",()=>goScene(0),{fill:"#365442",size:13});
+  }else if(state.W.scene>1.985&&state.sceneTarget===2){
+    drawButton("exp-home",navR,"🏡 Home",()=>returnFromExpedition(),{fill:"#365442",size:13});
   }
 
   const portraitCreature={x:pad,y:contentY,w:w-pad*2,h:contentH*.43};
@@ -802,7 +1270,10 @@ function draw(){
   const petInfo=mixRect(portraitInfo,wideInfo,W);
 
   const home=homeLayout(w,h,pad,contentY,contentH,W);
-  const creaturePanel=mixRect(petCreature,home.patch,T);
+  const exp=expeditionLayout(w,h,pad,contentY,contentH,W);
+
+  const creatureAtHome=mixRect(petCreature,home.patch,H);
+  const creaturePanel=mixRect(creatureAtHome,exp.companion,E);
 
   fillRound(creaturePanel,"#10251a",20);
   strokeRound(creaturePanel,"#ffffff12",20,1);
@@ -811,17 +1282,16 @@ function draw(){
   const infoExit=W<.5
     ?{x:petInfo.x,y:h+pad,w:petInfo.w,h:petInfo.h}
     :{x:w+pad,y:petInfo.y,w:petInfo.w,h:petInfo.h};
-  const infoPanel=mixRect(petInfo,infoExit,T);
-
-  if(T<.995){
+  const carePanel=mixRect(petInfo,infoExit,H);
+  if(H<.995){
     ctx.save();
-    ctx.globalAlpha=1-T;
-    drawCarePanel(infoPanel,u,state.W.scene<.015&&state.sceneTarget===0);
+    ctx.globalAlpha=1-H;
+    drawCarePanel(carePanel,u,state.W.scene<.015&&state.sceneTarget===0);
     ctx.restore();
   }
 
-  if(T>.005){
-    const H=state.home||{day:1,hour:8,seeds:0,moist:0,inventory:{}};
+  if(H>.005&&homeAlpha>.001){
+    const HH=state.home||{day:1,hour:8,seeds:0,moist:0,inventory:{}};
     const origin={
       x:home.patch.x+home.patch.w*.5-10,
       y:home.patch.y+home.patch.h*.5-10,
@@ -829,30 +1299,26 @@ function draw(){
     };
 
     ctx.save();
-    ctx.globalAlpha=T;
+    ctx.globalAlpha=homeAlpha;
 
-    const cottage=mixRect(origin,home.cottage,T);
-    const trail=mixRect(origin,home.trail,T);
-    const store=mixRect(origin,home.store,T);
-    const garden=mixRect(origin,home.garden,T);
+    const cottage=mixRect(origin,home.cottage,H);
+    const trail=mixRect(origin,home.trail,H);
+    const store=mixRect(origin,home.store,H);
+    const garden=mixRect(origin,home.garden,H);
 
     drawHomeCard(cottage,"Cottage",homeTimeText(),{fill:"#17271d",key:"cottage",asset:ASSETS.cottage});
     drawHomeCard(trail,"Wild Trail","Mossglass Hollow",{fill:"#122a1d",key:"trail",asset:ASSETS.trail});
-    drawHomeCard(store,"Storehouse","Seeds "+(H.seeds||0)+" · Resin "+((H.inventory&&H.inventory.resin)||0),{fill:"#17231c",key:"store",asset:ASSETS.store});
-    drawHomeCard(garden,"Garden","Moisture "+Math.round(H.moist||0)+"%",{fill:"#13261a",key:"garden"});
+    drawHomeCard(store,"Storehouse","Seeds "+(HH.seeds||0)+" · Resin "+((HH.inventory&&HH.inventory.resin)||0),{fill:"#17231c",key:"store",asset:ASSETS.store});
+    drawHomeCard(garden,"Garden","Moisture "+Math.round(HH.moist||0)+"%",{fill:"#13261a",key:"garden"});
     drawGardenBeds(garden);
 
     text("Creature Patch",creaturePanel.x+creaturePanel.w/2,creaturePanel.y+creaturePanel.h-10,{
       size:fitText("Creature Patch",creaturePanel.w-24,{maxSize:12,minSize:9,weight:800}),
-      weight:800,
-      align:"center",
-      baseline:"bottom",
-      color:"#839889"
+      weight:800,align:"center",baseline:"bottom",color:"#839889"
     });
-
     ctx.restore();
 
-    if(state.W.scene>.985&&state.sceneTarget===1){
+    if(Math.abs(state.W.scene-1)<.015&&state.sceneTarget===1){
       registerHit("place-cottage",home.cottage,()=>selectHome("cottage"));
       registerHit("place-trail",home.trail,()=>selectHome("trail"));
       registerHit("place-store",home.store,()=>selectHome("store"));
@@ -860,6 +1326,24 @@ function draw(){
       registerHit("place-patch",home.patch,()=>selectHome("patch"));
       drawHomeDrawer(w,h,pad,u);
     }
+  }
+
+  if(E>.005){
+    const R=state.expedition||expeditionDefaults();
+    const routePanel=mixRect(home.trail,exp.route,E);
+    const infoOrigin={x:home.trail.x,y:home.trail.y,w:home.trail.w,h:home.trail.h};
+    const infoPanel=mixRect(infoOrigin,exp.info,E);
+
+    ctx.save();
+    ctx.globalAlpha=expeditionAlpha;
+    drawExpeditionRoute(routePanel,R);
+    drawExpeditionInfo(infoPanel,R,u,state.W.scene>1.985&&state.sceneTarget===2);
+
+    text("Companion",creaturePanel.x+creaturePanel.w/2,creaturePanel.y+creaturePanel.h-8,{
+      size:fitText("Companion",creaturePanel.w-20,{maxSize:11,minSize:8,weight:800}),
+      weight:800,align:"center",baseline:"bottom",color:"#839889"
+    });
+    ctx.restore();
   }
 
   requestAnimationFrame(draw);
@@ -870,5 +1354,16 @@ window.visualViewport?.addEventListener("resize",solveViewport,{passive:true});
 
 syncHomeClock();
 loadCreature();
+loadExpedition();
+
+const initialParams=new URLSearchParams(location.search);
+if(initialParams.get("scene")==="expedition"){
+  state.W.scene=2;
+  state.sceneTarget=2;
+  initialParams.delete("scene");
+  const clean=location.pathname+(initialParams.toString()?"?"+initialParams.toString():"");
+  history.replaceState(null,"",clean);
+}
+
 solveViewport();
 requestAnimationFrame(draw);
