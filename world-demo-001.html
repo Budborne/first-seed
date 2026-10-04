@@ -7,7 +7,7 @@
 <title>Budborne: W Canvas 001 Demo</title>
 <style>
 html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#09150f;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
-canvas{display:block;width:100vw;height:100dvh;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+canvas{display:block;width:100vw;height:100dvh;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-user-drag:none}
 </style>
 </head>
 <body>
@@ -129,6 +129,14 @@ window.visualViewport?.addEventListener("resize",solveViewport,{passive:true});
 
 solveViewport();
 requestAnimationFrame(draw);
+</script>
+<script>
+const __wCanvas=document.getElementById("world");
+["contextmenu","dblclick","dragstart","selectstart"].forEach(type=>{
+  __wCanvas.addEventListener(type,e=>e.preventDefault(),{passive:false});
+});
+__wCanvas.addEventListener("touchstart",e=>e.preventDefault(),{passive:false});
+__wCanvas.addEventListener("touchmove",e=>e.preventDefault(),{passive:false});
 </script>
 </body>
 </html>
