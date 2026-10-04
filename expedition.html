@@ -81,6 +81,10 @@ button,a.btn{min-height:52px;border:0;border-radius:15px;background:var(--leaf);
   let R;
   try{R=JSON.parse(sessionStorage.getItem(RUN_KEY)||"{}")}catch(e){R={}}
   R={depth:0,time:0,vigor:3,loot:{wildSeed:0,resin:0,dewstone:0},finished:false,encounter:null,...R};
+  if(R.finished||R.depth>=5){
+    sessionStorage.removeItem(RUN_KEY);
+    R={depth:0,time:0,vigor:3,loot:{wildSeed:0,resin:0,dewstone:0},finished:false,encounter:null};
+  }
 
   const encounters=[
     {
@@ -161,7 +165,7 @@ button,a.btn{min-height:52px;border:0;border-radius:15px;background:var(--leaf);
     document.querySelectorAll(".node").forEach(n=>{const i=Number(n.dataset.node);n.classList.toggle("done",i<R.depth);n.classList.toggle("here",i===R.depth)});
     const chips=[];Object.keys(R.loot).forEach(k=>{if(R.loot[k])chips.push('<span class="chip">'+lootName(k)+' ×'+R.loot[k]+'</span>')});
     $("loot").innerHTML=chips.join("")||'<span class="chip">Pack empty</span>';
-    save();
+    if(!R.finished)save();
   }
 
   function randomEncounter(){
@@ -227,7 +231,7 @@ button,a.btn{min-height:52px;border:0;border-radius:15px;background:var(--leaf);
 
   function finish(success,forced){
     if(R.finished)return;
-    R.finished=true;const passed=commitHome(success,forced);render();
+    R.finished=true;render();const passed=commitHome(success,forced);
     $("choices").replaceChildren();$("travelActions").style.display="grid";$("advance").remove();
     $("return").textContent="Return to clearing";$("return").className="secondary";$("return").onclick=()=>location.href="home.html";
     if(success){$("eventText").textContent+=" Home advances "+passed.toFixed(1)+" hours when you return."}
