@@ -1182,7 +1182,16 @@ function drawIsoHome(area,now,interactive){
       drawCreature({x:p.x-s*.5,y:p.y-s*1.05,w:s,h:s},now,{labels:false});
     }
   }
-  const trail=isoPoint(G,4,-4);text("Wild Trail  ›",trail.x,trail.y-G.th*.4,{size:11,weight:900,align:"center",color:"#d7e7b2"});
+  const trail=isoPoint(G,3,-3);
+  const trailBack=isoPoint(G,4,-4);
+  ctx.save();
+  ctx.strokeStyle="#b99d6788";ctx.lineWidth=Math.max(5,G.tw*.11);ctx.lineCap="round";
+  ctx.beginPath();ctx.moveTo(trail.x,trail.y);ctx.lineTo(trailBack.x,trailBack.y-G.th*.45);ctx.stroke();
+  ctx.restore();
+  ctx.beginPath();ctx.arc(trail.x,trail.y-G.th*.22,Math.max(9,G.tw*.16),0,Math.PI*2);
+  ctx.fillStyle="#1b3324";ctx.fill();ctx.strokeStyle="#a9db70";ctx.lineWidth=2;ctx.stroke();
+  text("›",trail.x,trail.y-G.th*.22,{size:18,weight:950,align:"center",baseline:"middle",color:"#dff6a9"});
+  text("Wild Trail",trail.x,trail.y-G.th*.92,{size:11,weight:900,align:"center",color:"#d7e7b2"});
   const pond=isoPoint(G,1.3,1.3);text("Pond",pond.x,pond.y+G.th*.65,{size:10,weight:800,align:"center",color:"#9fc6b8"});
   ctx.restore();
 
@@ -1198,7 +1207,7 @@ function drawIsoHome(area,now,interactive){
     hotspot("iso-cottage",-2.5,-2.5,-2,-1,1.8,2.4);
     hotspot("iso-store",2.5,-2.5,2,-1,1.8,2.4);
     hotspot("iso-garden",-2.5,2.5,-2,1,2.1,1.8);
-    hotspot("iso-trail",4,-4,3,-4,1.7,1.5);
+    hotspot("iso-trail",3,-3,3,-4,1.9,2.0);
     const bp=isoPoint(G,state.isoHome.x,state.isoHome.y);
     registerHit("iso-creature",{x:bp.x-G.tw*.4,y:bp.y-G.th*1.3,w:G.tw*.8,h:G.th*1.4},()=>selectHome("patch"));
   }
