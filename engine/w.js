@@ -1184,11 +1184,13 @@ function drawIsoHome(area,now,interactive){
   }
   const trail=isoPoint(G,-.5,-3.5);
   const trailBack=isoPoint(G,-.5,-4.8);
+  const trailRoad=isoPoint(G,-1.5,-3.5);
+  const trailRoadBack=isoPoint(G,-1.5,-4.8);
   ctx.save();
   ctx.strokeStyle="#a98b5f";ctx.lineWidth=Math.max(8,G.tw*.18);ctx.lineCap="round";
-  ctx.beginPath();ctx.moveTo(trail.x,trail.y+G.th*.30);ctx.lineTo(trailBack.x,trailBack.y);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(trailRoad.x,trailRoad.y+G.th*.30);ctx.lineTo(trailRoadBack.x,trailRoadBack.y);ctx.stroke();
   ctx.strokeStyle="#d1b77a66";ctx.lineWidth=Math.max(2,G.tw*.035);
-  ctx.beginPath();ctx.moveTo(trail.x,trail.y+G.th*.30);ctx.lineTo(trailBack.x,trailBack.y);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(trailRoad.x,trailRoad.y+G.th*.30);ctx.lineTo(trailRoadBack.x,trailRoadBack.y);ctx.stroke();
   ctx.restore();
 
   // The original Wild Trail art now marks the world exit itself.
