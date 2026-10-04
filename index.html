@@ -62,7 +62,7 @@ h1{font-size:clamp(2rem,10vw,3.35rem);margin:.08em 0 .12em}
 .fill.low{background:linear-gradient(90deg,#916046,var(--danger))}
 .growthbox{margin:9px 0 16px;padding:11px 12px;background:var(--mud);border-radius:16px;text-align:left}
 .growthtop{display:flex;justify-content:space-between;gap:10px;font-size:.82rem;font-weight:850;margin-bottom:6px}
-.meta{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
+.meta{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:14px}
 .stat{background:#ffffff0a;border:1px solid #ffffff0d;padding:10px 6px;border-radius:14px}
 .stat span{display:block;color:var(--muted);font-size:.72rem}.stat b{display:block;font-size:1.05rem;margin-top:2px}
 #msg{min-height:46px;display:grid;place-items:center;margin:5px 0 8px;font-weight:650}
@@ -73,6 +73,16 @@ button:active{transform:translateY(1px)}
 .memories{margin-top:14px;text-align:left;border-top:1px solid #ffffff12;padding-top:13px}
 .memories h2{font-size:.78rem;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);margin:0 0 8px}
 .memory{font-size:.82rem;padding:8px 10px;border-radius:12px;background:#ffffff07;margin-top:6px}
+.wide{grid-column:1/-1}
+.identity{margin-top:14px;text-align:left;border-top:1px solid #ffffff12;padding-top:13px}
+.identity h2{font-size:.78rem;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);margin:0 0 10px}
+.idgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.idcell{background:#ffffff08;border:1px solid #ffffff0d;border-radius:14px;padding:10px}
+.idcell span{display:block;color:var(--muted);font-size:.7rem}.idcell b{display:block;margin-top:2px}
+.traits{display:grid;gap:7px;margin-top:10px}
+.trait{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:9px 10px;background:#ffffff07;border-radius:12px}
+.trait strong{font-size:.82rem}.trait small{color:var(--muted);text-align:right}
+.trait.hidden strong,.trait.hidden small{color:#76877a}
 .tiny{font-size:.74rem;color:#8ea491;margin:17px 8px 0;line-height:1.45}
 </style>
 </head>
@@ -109,6 +119,7 @@ button:active{transform:translateY(1px)}
 
     <div class="meta">
       <div class="stat"><span>Care</span><b id="care">0</b></div>
+      <div class="stat"><span>Bond</span><b id="bond">0</b></div>
       <div class="stat"><span>Day</span><b id="days">1</b></div>
       <div class="stat"><span>State</span><b id="state">Awake</b></div>
     </div>
@@ -117,9 +128,19 @@ button:active{transform:translateY(1px)}
     <div class="actions">
       <button id="water">💧 Water</button>
       <button id="sun" class="secondary">☀️ Sun</button>
+      <button id="hangout" class="secondary wide">🌿 Spend time together</button>
     </div>
 
     <a class="home-link" href="home.html">🏡 Visit Home Clearing</a>
+
+    <div class="identity">
+      <h2>Identity</h2>
+      <div class="idgrid">
+        <div class="idcell"><span>Lineage</span><b id="lineage">Founder · Gen 0</b></div>
+        <div class="idcell"><span>Temperament</span><b id="temperament">Unknown</b></div>
+      </div>
+      <div class="traits" id="traits"></div>
+    </div>
 
     <div class="memories">
       <h2>Memory</h2>
@@ -197,6 +218,18 @@ button:active{transform:translateY(1px)}
   }
 
   var S=migrate(raw);
+
+  if(!S.lineage)S.lineage={generation:0,origin:"First Seed",parents:[]};
+  if(!S.genome)S.genome={
+    tempo:["Q","q"],
+    light:["S","s"],
+    vigor:["H","h"],
+    thorn:["t","t"]
+  };
+  if(!Number.isFinite(S.bond))S.bond=Math.min(70,Math.round((Number(S.care)||0)/3));
+  if(!S.careStyle)S.careStyle={water:0,sun:0,social:0};
+  if(!Number.isFinite(S.lastBondWorldHours))S.lastBondWorldHours=-999;
+
   var profile=PROFILES[S.growthProfile]||PROFILES["first-seed"];
   var stages=profile.stages;
 
@@ -207,6 +240,27 @@ button:active{transform:translateY(1px)}
   function remember(text){
     if(S.memories.some(function(m){return m.text===text}))return;
     S.memories.unshift(makeMemory(text));S.memories=S.memories.slice(0,8);
+  }
+
+  function hasAllele(pair,allele){return Array.isArray(pair)&&pair.indexOf(allele)>=0}
+  function inheritedTraits(){
+    return [
+      {name:"Quickroot",desc:"naturally favors faster actions",on:hasAllele(S.genome.tempo,"Q")},
+      {name:"Sunwise",desc:"responds strongly to bright conditions",on:hasAllele(S.genome.light,"S")},
+      {name:"Hardy",desc:"holds up well under stress",on:hasAllele(S.genome.vigor,"H")},
+      {name:"Thorns",desc:"contact attackers take damage",on:hasAllele(S.genome.thorn,"T")}
+    ];
+  }
+  function temperament(){
+    var social=Number(S.careStyle.social)||0,water=Number(S.careStyle.water)||0,sun=Number(S.careStyle.sun)||0;
+    if(S.bond>=85&&social>=4)return "Attached";
+    if(social>=6)return "Playful";
+    if(sun>water+4)return "Bright";
+    if(water>sun+4)return "Grounded";
+    return "Curious";
+  }
+  function revealCount(stageKey){
+    return {seed:0,sprout:1,shoot:2,youngling:3,budborn:4}[stageKey]||0;
   }
   function passWorldTime(hours){
     if(hours<=.001)return;
@@ -266,8 +320,18 @@ button:active{transform:translateY(1px)}
       $("nextLabel").textContent="Next: "+stages[stages.indexOf(st)+1].name+" · "+Math.ceil(st.next-S.growth);
     }else{bar("growthBar",100);$("nextLabel").textContent="Creature Zero"}
     $("care").textContent=S.care;
+    $("bond").textContent=Math.round(S.bond);
     $("days").textContent=Math.max(1,Math.floor((worldNow-S.bornWorldHours)/24)+1);
     $("state").textContent=S.dormant?"Dormant":"Awake";
+    $("lineage").textContent=(S.lineage.generation===0?"Founder":"Generation "+S.lineage.generation)+" · Gen "+S.lineage.generation;
+    $("temperament").textContent=st.key==="seed"?"Forming…":temperament();
+
+    var traits=inheritedTraits(),reveals=revealCount(st.key);
+    $("traits").innerHTML=traits.map(function(t,i){
+      if(i>=reveals)return '<div class="trait hidden"><strong>?</strong><small>potential still hidden</small></div>';
+      return '<div class="trait"><strong>'+(t.on?"✓ ":"○ ")+t.name+'</strong><small>'+(t.on?t.desc:"not expressed")+'</small></div>';
+    }).join("");
+
     $("memoryList").innerHTML=S.memories.slice(0,3).map(function(m){return '<div class="memory">'+m.text+'</div>'}).join("")||'<div class="memory">No memories yet. That will change.</div>';
     save();
   }
@@ -282,7 +346,7 @@ button:active{transform:translateY(1px)}
     if(st.key==="seed"){choices=["idle-wiggle","idle-settle","idle-settle"];if(Math.random()<.18)line="Something moved under the soil."}
     else if(st.key==="sprout"){choices=["idle-sway","idle-wiggle","idle-sway"];if(S.sun<35&&Math.random()<.35)line="The sprout searches slowly for better light.";else if(Math.random()<.14)line="Two small leaves turn without being asked."}
     else if(st.key==="shoot"){choices=["idle-sway","idle-peek","idle-wiggle"];if(S.water<32&&Math.random()<.35)line="Its leaves droop toward the dampest patch of soil.";else if(Math.random()<.14)line="It tests the air with a slow turn."}
-    else{choices=["idle-peek","idle-hop","idle-sway","idle-peek"];if(S.water<32&&Math.random()<.4)line="Creature Zero keeps glancing toward the watering spot.";else if(S.sun<30&&Math.random()<.4)line="Creature Zero edges toward the brightest part of the plot.";else if(Math.random()<.12)line=["Creature Zero studies something beyond the edge of the plot.","A root-foot scratches thoughtfully at the soil.","Creature Zero takes one completely unnecessary little hop."][Math.floor(Math.random()*3)]}
+    else{choices=["idle-peek","idle-hop","idle-sway","idle-peek"];if(S.water<32&&Math.random()<.4)line="Creature Zero keeps glancing toward the watering spot.";else if(S.sun<30&&Math.random()<.4)line="Creature Zero edges toward the brightest part of the plot.";else if(S.bond>=80&&Math.random()<.18)line="Creature Zero wanders over just to stand near you.";else if(Math.random()<.12)line=["Creature Zero studies something beyond the edge of the plot.","A root-foot scratches thoughtfully at the soil.","Creature Zero takes one completely unnecessary little hop."][Math.floor(Math.random()*3)]}
     creature.classList.add(choices[Math.floor(Math.random()*choices.length)]);
     if(st.key!=="seed"&&Math.random()<.45)setTimeout(function(){creature.classList.add("blink");setTimeout(function(){creature.classList.remove("blink")},150)},180+Math.random()*350);
     if(line)msg.textContent=line;setTimeout(clearIdle,1300);scheduleIdle();
@@ -303,13 +367,13 @@ button:active{transform:translateY(1px)}
     var oldKey=stageFor(S.growth).key,useful=false;
     if(kind==="water"){
       if(S.water>=86)msg.textContent="It turns a leaf away. The soil is wet enough.";
-      else{if(!S.memories.some(function(m){return m.text==="First drink."}))remember("First drink.");S.water=clamp(S.water+24,0,100);useful=true;msg.textContent=["The roots loosen beneath the soil.","A quiet shiver runs up the stem.","Water disappears into the earth."][S.care%3]}
+      else{if(!S.memories.some(function(m){return m.text==="First drink."}))remember("First drink.");S.water=clamp(S.water+24,0,100);S.careStyle.water++;useful=true;msg.textContent=["The roots loosen beneath the soil.","A quiet shiver runs up the stem.","Water disappears into the earth."][S.care%3]}
     }else{
       if(S.sun>=86)msg.textContent="It has stored enough light for now.";
-      else{if(!S.memories.some(function(m){return m.text==="First sunlight."}))remember("First sunlight.");S.sun=clamp(S.sun+24,0,100);useful=true;msg.textContent=["It leans toward the warmth.","A leaf slowly turns toward the light.","For a moment, it seems taller."][S.care%3]}
+      else{if(!S.memories.some(function(m){return m.text==="First sunlight."}))remember("First sunlight.");S.sun=clamp(S.sun+24,0,100);S.careStyle.sun++;useful=true;msg.textContent=["It leans toward the warmth.","A leaf slowly turns toward the light.","For a moment, it seems taller."][S.care%3]}
     }
     if(useful){
-      S.care++;S.growth+=1;
+      S.care++;S.growth+=1;S.bond=clamp(S.bond+.35,0,100);
       if(S.water>=30&&S.sun>=30)S.health=clamp(S.health+1.5,0,100);
       if(S.care===12)remember("It began reacting before your hand reached the controls.");
       if(S.care===25)remember("Its roots have started choosing their own paths.");
@@ -320,6 +384,19 @@ button:active{transform:translateY(1px)}
 
   $("water").addEventListener("click",function(){care("water")});
   $("sun").addEventListener("click",function(){care("sun")});
+  $("hangout").addEventListener("click",function(){
+    var since=worldNow-S.lastBondWorldHours;
+    S.careStyle.social++;
+    if(since>=.5){
+      S.bond=clamp(S.bond+2,0,100);
+      S.lastBondWorldHours=worldNow;
+      remember("You spent quiet time together at the patch.");
+      msg.textContent=S.bond>=85?"Creature Zero settles beside you without being asked.":"Creature Zero watches you for a while, then inches closer.";
+    }else{
+      msg.textContent="Creature Zero seems content to just share the space for now.";
+    }
+    bounce();render();
+  });
   render();scheduleIdle(1800);
   document.addEventListener("visibilitychange",function(){if(!document.hidden)scheduleIdle(900)});
 })();
