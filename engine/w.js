@@ -33,6 +33,18 @@ const state={
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const lerp=(a,b,t)=>a+(b-a)*t;
 const smoothstep=t=>t*t*(3-2*t);
+
+const ASSETS={
+  cottage:{src:"./cottage.PNG",img:new Image(),ready:false,failed:false},
+  trail:{src:"./wild-trail.PNG",img:new Image(),ready:false,failed:false},
+  store:{src:"./storehouse.PNG",img:new Image(),ready:false,failed:false}
+};
+for(const asset of Object.values(ASSETS)){
+  asset.img.onload=()=>asset.ready=true;
+  asset.img.onerror=()=>asset.failed=true;
+  asset.img.src=asset.src;
+}
+
 const mixRect=(a,b,t)=>({
   x:lerp(a.x,b.x,t),
   y:lerp(a.y,b.y,t),
@@ -102,6 +114,28 @@ function strokeRound(r,color,rad=14,width=1){
   ctx.strokeStyle=color;
   ctx.lineWidth=width;
   ctx.stroke();
+}
+
+function drawAssetContain(asset,r,opt={}){
+  if(!asset||!asset.ready||!asset.img.naturalWidth)return false;
+  const pad=opt.pad||0;
+  const box={
+    x:r.x+pad,
+    y:r.y+pad,
+    w:Math.max(1,r.w-pad*2),
+    h:Math.max(1,r.h-pad*2)
+  };
+  const iw=asset.img.naturalWidth,ih=asset.img.naturalHeight;
+  const scale=Math.min(box.w/iw,box.h/ih);
+  const dw=iw*scale,dh=ih*scale;
+  const x=box.x+(box.w-dw)/2;
+  const y=box.y+(box.h-dh)/2+(opt.offsetY||0);
+
+  ctx.save();
+  if(Number.isFinite(opt.alpha))ctx.globalAlpha*=opt.alpha;
+  ctx.drawImage(asset.img,x,y,dw,dh);
+  ctx.restore();
+  return true;
 }
 
 function stageFor(g){
@@ -547,10 +581,23 @@ function drawHomeCard(r,title,subtitle,opt={}){
   const selected=state.homeSelected===opt.key;
   fillRound(r,selected?"#193323":(opt.fill||"#10251a"),18);
   strokeRound(r,selected?"#a9db70":"#ffffff12",18,selected?2:1);
+
   const size=fitText(title,r.w-20,{maxSize:14,minSize:10,weight:880});
+  const ss=subtitle?fitText(subtitle,r.w-20,{maxSize:11,minSize:8,weight:650}):0;
+  const labelH=subtitle?size+ss+18:size+14;
+
+  if(opt.asset){
+    const art={
+      x:r.x+5,
+      y:r.y+labelH,
+      w:r.w-10,
+      h:Math.max(8,r.h-labelH-5)
+    };
+    drawAssetContain(opt.asset,art,{pad:2});
+  }
+
   text(title,r.x+12,r.y+11,{size,weight:880,color:"#eef3df"});
   if(subtitle){
-    const ss=fitText(subtitle,r.w-20,{maxSize:11,minSize:8,weight:650});
     text(subtitle,r.x+12,r.y+13+size,{size:ss,weight:650,color:"#8fa394"});
   }
 }
@@ -789,9 +836,9 @@ function draw(){
     const store=mixRect(origin,home.store,T);
     const garden=mixRect(origin,home.garden,T);
 
-    drawHomeCard(cottage,"Cottage",homeTimeText(),{fill:"#17271d",key:"cottage"});
-    drawHomeCard(trail,"Wild Trail","Mossglass Hollow",{fill:"#122a1d",key:"trail"});
-    drawHomeCard(store,"Storehouse","Seeds "+(H.seeds||0)+" · Resin "+((H.inventory&&H.inventory.resin)||0),{fill:"#17231c",key:"store"});
+    drawHomeCard(cottage,"Cottage",homeTimeText(),{fill:"#17271d",key:"cottage",asset:ASSETS.cottage});
+    drawHomeCard(trail,"Wild Trail","Mossglass Hollow",{fill:"#122a1d",key:"trail",asset:ASSETS.trail});
+    drawHomeCard(store,"Storehouse","Seeds "+(H.seeds||0)+" · Resin "+((H.inventory&&H.inventory.resin)||0),{fill:"#17231c",key:"store",asset:ASSETS.store});
     drawHomeCard(garden,"Garden","Moisture "+Math.round(H.moist||0)+"%",{fill:"#13261a",key:"garden"});
     drawGardenBeds(garden);
 
