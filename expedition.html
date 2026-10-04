@@ -76,7 +76,7 @@ button,a.btn{min-height:52px;border:0;border-radius:15px;background:var(--leaf);
 
 <script>
 (function(){
-  const HOME_KEY="budborne:home-v1", RUN_KEY="budborne:expedition-v2", CREATURE_KEY="budborne:first-seed";
+  const HOME_KEY="budborne:home-v1", RUN_KEY="budborne:expedition-v2", CREATURE_KEY="budborne:first-seed", BATTLE_RESULT_KEY="budborne:battle-result";
   const $=id=>document.getElementById(id);
   let R;
   try{R=JSON.parse(sessionStorage.getItem(RUN_KEY)||"{}")}catch(e){R={}}
@@ -168,6 +168,23 @@ button,a.btn{min-height:52px;border:0;border-radius:15px;background:var(--leaf);
     if(!R.finished)save();
   }
 
+  function consumeBattleResult(){
+    let B=null;
+    try{B=JSON.parse(sessionStorage.getItem(BATTLE_RESULT_KEY)||"null")}catch(e){}
+    if(!B||!R.battlePending)return null;
+    sessionStorage.removeItem(BATTLE_RESULT_KEY);
+    R.battlePending=false;R.battleTested=true;R.time+=(Number(B.trailTime)||0);
+    if(B.victory){
+      R.depth++;
+      if(B.loot&&B.loot.resin)R.loot.resin+=B.loot.resin;
+      R.returnMessage={title:"Bramblejaw defeated",text:"Creature Zero won its first battle. The trail opens again, and Amber Resin has been added to the pack."};
+    }else{
+      R.vigor=Math.max(0,R.vigor-1);
+      R.returnMessage={title:"Bramblejaw held the trail",text:"Creature Zero was forced back. The loss costs 1 expedition vigor, but the run is still alive."};
+    }
+    save();return B;
+  }
+
   function randomEncounter(){
     const pool=encounters.filter(e=>e.title!==R.lastEncounter);
     return pool[Math.floor(Math.random()*pool.length)];
@@ -175,6 +192,17 @@ button,a.btn{min-height:52px;border:0;border-radius:15px;background:var(--leaf);
 
   function showEncounter(){
     if(R.finished)return;
+    const cs=creatureStage();
+    if(cs.battle&&!R.battleTested){
+      R.battlePending=true;save();
+      $("eventTitle").textContent="Something moves in the bramble";
+      $("eventText").textContent="A Bramblejaw steps onto the trail. Creature Zero is finally old enough to answer.";
+      $("travelActions").style.display="none";
+      const box=$("choices");box.className="choices three";box.replaceChildren();
+      const fight=document.createElement("button");fight.className="choice";fight.innerHTML='Stand your ground<span>Enter the first timeline battle</span>';fight.onclick=()=>location.href="battle.html";
+      const avoid=document.createElement("button");avoid.className="choice secondary";avoid.innerHTML='Back away<span>+0.4h · skip this fight</span>';avoid.onclick=()=>{R.battlePending=false;R.battleTested=true;R.time+=.4;$("choices").replaceChildren();$("travelActions").style.display="grid";$("eventTitle").textContent="You give it the trail";$("eventText").textContent="Bramblejaw watches you back away, then disappears into the brush.";render()};
+      box.append(fight,avoid);return;
+    }
     const e=randomEncounter();R.encounter={title:e.title};R.lastEncounter=e.title;save();
     $("eventTitle").textContent=e.title;$("eventText").textContent=e.text;
     $("travelActions").style.display="none";
@@ -239,7 +267,16 @@ button,a.btn{min-height:52px;border:0;border-radius:15px;background:var(--leaf);
   }
 
   $("advance").onclick=showEncounter;$("return").onclick=()=>finish(false,false);
+  const battleResult=consumeBattleResult();
   render();
+  if(R.returnMessage){
+    $("eventTitle").textContent=R.returnMessage.title;$("eventText").textContent=R.returnMessage.text;
+    R.returnMessage=null;save();
+    if(R.vigor<=0)finish(false,true);
+    else if(R.depth>=5){
+      R.loot.wildSeed++;$("eventTitle").textContent="The Heartroot cache";$("eventText").textContent="Beyond the battle, the root-wrapped cache waits. One living seed remains.";finish(true,false);
+    }else $("advance").textContent="Enter stretch "+(R.depth+1);
+  }
 })();
 </script>
 </body>
