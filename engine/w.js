@@ -1337,6 +1337,13 @@ function draw(){
     ctx.save();
     ctx.globalAlpha=expeditionAlpha;
     drawExpeditionRoute(routePanel,R);
+
+    // Route painting covers the traveling companion during the scene morph,
+    // so redraw the SAME Creature Zero above it instead of creating a copy.
+    fillRound(creaturePanel,"#10251a",16);
+    strokeRound(creaturePanel,"#ffffff12",16,1);
+    drawCreature(creaturePanel,now);
+
     drawExpeditionInfo(infoPanel,R,u,state.W.scene>1.985&&state.sceneTarget===2);
 
     text("Companion",creaturePanel.x+creaturePanel.w/2,creaturePanel.y+creaturePanel.h-8,{
