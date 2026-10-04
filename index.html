@@ -126,92 +126,120 @@ button:active{transform:translateY(1px)}
       <div id="memoryList"></div>
     </div>
   </section>
-  <div class="tiny">The world is not simulated every second. Time passes, consequences are derived when you return.<br>First we make one life worth caring about.</div>
+  <div class="tiny">Creature Zero now lives on the same local clock as home. Real time, rest, and expeditions all move that clock.<br>This first seed uses accelerated prototype growth.</div>
 </main>
 
 <script>
 (function(){
-  var KEY="budborne:first-seed";
-  var HOUR=3600000, DAY=86400000, now=Date.now();
+  var KEY="budborne:first-seed", HOME_KEY="budborne:home-v1";
+  var HOUR=3600000, now=Date.now();
 
-  var raw={};
-  try{raw=JSON.parse(localStorage.getItem(KEY)||"{}")}catch(e){raw={}}
+  var PROFILES={
+    "first-seed":{
+      growthPerHour:2.4,
+      waterUse:1.8,
+      lightUse:.9,
+      stages:[
+        {key:"seed",name:"Seed",min:0,next:12},
+        {key:"sprout",name:"Sprout",min:12,next:30},
+        {key:"shoot",name:"Shoot",min:30,next:65},
+        {key:"youngling",name:"Youngling",min:65,next:120},
+        {key:"budborn",name:"Budborn",min:120,next:null}
+      ]
+    }
+  };
 
   function clamp(n,a,b){return Math.max(a,Math.min(b,n))}
   function makeMemory(text){return {text:text,at:Date.now()}}
+  function homeHours(H){return ((H.day||1)-1)*24+(Number(H.hour)||0)}
+  function applyHomeHours(H,hours){
+    H.hour=(Number(H.hour)||0)+hours;
+    H.moist=Math.max(0,(Number.isFinite(H.moist)?H.moist:70)-hours*2.5);
+    while(H.hour>=24){H.hour-=24;H.day=(H.day||1)+1}
+    H.crops=(Array.isArray(H.crops)?H.crops:[0,0,0]).map(function(v){return v?Math.min(3,v+hours/6):0});
+  }
+  function syncHomeClock(){
+    var H={};
+    try{H=JSON.parse(localStorage.getItem(HOME_KEY)||"{}")}catch(e){H={}}
+    H={hour:Number.isFinite(H.hour)?H.hour:8,day:H.day||1,seeds:Number.isFinite(H.seeds)?H.seeds:3,moist:Number.isFinite(H.moist)?H.moist:70,crops:Array.isArray(H.crops)?H.crops:[0,0,0],inventory:H.inventory||{wildSeed:0,resin:0,dewstone:0},lastRealMs:H.lastRealMs||now,...H};
+    if(!H.inventory)H.inventory={wildSeed:0,resin:0,dewstone:0};
+    var elapsed=Math.max(0,Math.min(720,(now-H.lastRealMs)/HOUR));
+    if(elapsed>.01)applyHomeHours(H,elapsed);
+    H.lastRealMs=now;
+    localStorage.setItem(HOME_KEY,JSON.stringify(H));
+    return H;
+  }
+
+  var H=syncHomeClock(), worldNow=homeHours(H);
+  var raw={};try{raw=JSON.parse(localStorage.getItem(KEY)||"{}")}catch(e){raw={}}
+
   function migrate(old){
-    if(old.version===2)return old;
+    if(old.version===3){
+      if(!old.growthProfile)old.growthProfile="first-seed";
+      if(!Number.isFinite(old.worldSeenHours))old.worldSeenHours=worldNow;
+      if(!Number.isFinite(old.bornWorldHours))old.bornWorldHours=worldNow;
+      return old;
+    }
     var oldDays=Math.max(1,Number(old.days)||1);
     return {
-      version:2,
+      version:3,
+      growthProfile:"first-seed",
       growth:Number(old.growth)||0,
       care:Number(old.care)||0,
-      water:62,
-      sun:58,
-      health:100,
-      bornAt:now-(oldDays-1)*DAY,
-      lastSeen:now,
-      dormant:false,
-      memories:[makeMemory("Creature Zero remembers the first garden.")]
+      water:Number.isFinite(old.water)?old.water:62,
+      sun:Number.isFinite(old.sun)?old.sun:58,
+      health:Number.isFinite(old.health)?old.health:100,
+      worldSeenHours:worldNow,
+      bornWorldHours:worldNow-((oldDays-1)*24),
+      dormant:!!old.dormant,
+      memories:Array.isArray(old.memories)&&old.memories.length?old.memories:[makeMemory("Creature Zero remembers the first garden.")]
     };
   }
 
   var S=migrate(raw);
-  if(!Array.isArray(S.memories))S.memories=[];
-  if(!S.bornAt)S.bornAt=now;
-  if(!S.lastSeen)S.lastSeen=now;
-
-  var stages=[
-    {key:"seed",name:"Seed",min:0,next:20},
-    {key:"sprout",name:"Sprout",min:20,next:60},
-    {key:"shoot",name:"Shoot",min:60,next:140},
-    {key:"youngling",name:"Youngling",min:140,next:300},
-    {key:"budborn",name:"Budborn",min:300,next:null}
-  ];
+  var profile=PROFILES[S.growthProfile]||PROFILES["first-seed"];
+  var stages=profile.stages;
 
   function stageFor(g){
     for(var i=stages.length-1;i>=0;i--)if(g>=stages[i].min)return stages[i];
     return stages[0];
   }
-
   function remember(text){
     if(S.memories.some(function(m){return m.text===text}))return;
-    S.memories.unshift(makeMemory(text));
-    S.memories=S.memories.slice(0,8);
+    S.memories.unshift(makeMemory(text));S.memories=S.memories.slice(0,8);
   }
-
-  function passTime(){
-    var elapsed=Math.max(0,now-S.lastSeen);
-    var hours=Math.min(72,elapsed/HOUR);
-    if(hours<0.01){S.lastSeen=now;return}
-
-    var healthyWaterHours=Math.max(0,(S.water-22)/2.2);
-    var healthySunHours=Math.max(0,(S.sun-20)/1.25);
-    var healthyHours=Math.min(hours,healthyWaterHours,healthySunHours);
+  function passWorldTime(hours){
+    if(hours<=.001)return;
+    var oldStage=stageFor(S.growth).key;
+    var waterFloor=22,lightFloor=20;
+    var healthyWaterHours=Math.max(0,(S.water-waterFloor)/profile.waterUse);
+    var healthyLightHours=Math.max(0,(S.sun-lightFloor)/profile.lightUse);
+    var healthyHours=Math.min(hours,healthyWaterHours,healthyLightHours);
     var stressedHours=Math.max(0,hours-healthyHours);
 
     if(!S.dormant){
       var vigor=clamp(S.health/100,.25,1);
-      S.growth+=healthyHours*1.35*vigor;
+      S.growth+=healthyHours*profile.growthPerHour*vigor;
     }
 
-    S.health=clamp(S.health+(healthyHours*.45)-(stressedHours*2.3),0,100);
-    S.water=clamp(S.water-hours*2.2,0,100);
-    S.sun=clamp(S.sun-hours*1.25,0,100);
+    S.health=clamp(S.health+(healthyHours*.35)-(stressedHours*2.1),0,100);
+    S.water=clamp(S.water-hours*profile.waterUse,0,100);
+    S.sun=clamp(S.sun-hours*profile.lightUse,0,100);
 
     if(S.health<=10&&!S.dormant){
       S.dormant=true;
       remember("When care ran thin, Creature Zero folded inward and went dormant.");
     }
-
-    S.lastSeen=now;
+    var newStage=stageFor(S.growth).key;
+    if(newStage!==oldStage)remember("Creature Zero changed while home time passed.");
   }
 
-  passTime();
+  var delta=Math.max(0,worldNow-S.worldSeenHours);
+  passWorldTime(delta);
+  S.worldSeenHours=worldNow;
 
   var $=function(id){return document.getElementById(id)};
-  var msg=$("msg"), creature=$("creature");
-  var beforeStage=stageFor(S.growth).key;
+  var msg=$("msg"),creature=$("creature");
 
   function mood(){
     if(S.dormant)return "dormant";
@@ -222,160 +250,77 @@ button:active{transform:translateY(1px)}
     if(S.health>88&&S.water>40&&S.sun>40)return "content";
     return "curious";
   }
-
-  function bar(id,value){
-    var el=$(id);
-    el.style.width=clamp(value,0,100)+"%";
-    el.classList.toggle("low",value<25);
-  }
-
+  function bar(id,value){var el=$(id);el.style.width=clamp(value,0,100)+"%";el.classList.toggle("low",value<25)}
   function save(){localStorage.setItem(KEY,JSON.stringify(S))}
-
   function render(){
     var st=stageFor(S.growth);
     creature.dataset.stage=st.key;
     creature.classList.toggle("sleepy",S.dormant||S.health<35);
-    $("stagePill").textContent=st.name;
-    $("mood").textContent=mood();
-
-    $("waterValue").textContent=Math.round(S.water)+"%";
-    $("sunValue").textContent=Math.round(S.sun)+"%";
-    $("healthValue").textContent=Math.round(S.health)+"%";
+    $("stagePill").textContent=st.name;$("mood").textContent=mood();
+    $("waterValue").textContent=Math.round(S.water)+"%";$("sunValue").textContent=Math.round(S.sun)+"%";$("healthValue").textContent=Math.round(S.health)+"%";
     bar("waterBar",S.water);bar("sunBar",S.sun);bar("healthBar",S.health);
-
     $("growthLabel").textContent="Growth "+Math.floor(S.growth);
     if(st.next){
       var pct=((S.growth-st.min)/(st.next-st.min))*100;
       bar("growthBar",pct);
       $("nextLabel").textContent="Next: "+stages[stages.indexOf(st)+1].name+" · "+Math.ceil(st.next-S.growth);
-    }else{
-      bar("growthBar",100);
-      $("nextLabel").textContent="Creature Zero";
-    }
-
+    }else{bar("growthBar",100);$("nextLabel").textContent="Creature Zero"}
     $("care").textContent=S.care;
-    $("days").textContent=Math.max(1,Math.floor((now-S.bornAt)/DAY)+1);
+    $("days").textContent=Math.max(1,Math.floor((worldNow-S.bornWorldHours)/24)+1);
     $("state").textContent=S.dormant?"Dormant":"Awake";
-
     $("memoryList").innerHTML=S.memories.slice(0,3).map(function(m){return '<div class="memory">'+m.text+'</div>'}).join("")||'<div class="memory">No memories yet. That will change.</div>';
     save();
   }
 
-  var idleClasses=["idle-wiggle","idle-sway","idle-peek","idle-hop","idle-settle"];
-  var idleTimer=null;
-
-  function clearIdle(){
-    idleClasses.forEach(function(k){creature.classList.remove(k)});
-    creature.classList.remove("blink");
-  }
-
-  function bounce(){
-    clearIdle();
-    creature.classList.remove("happy");
-    void creature.offsetWidth;
-    creature.classList.add("happy");
-  }
-
+  var idleClasses=["idle-wiggle","idle-sway","idle-peek","idle-hop","idle-settle"],idleTimer=null;
+  function clearIdle(){idleClasses.forEach(function(k){creature.classList.remove(k)});creature.classList.remove("blink")}
+  function bounce(){clearIdle();creature.classList.remove("happy");void creature.offsetWidth;creature.classList.add("happy")}
   function idleBehavior(){
-    clearTimeout(idleTimer);
-    if(document.hidden){scheduleIdle();return}
-    var st=stageFor(S.growth);
-    if(S.dormant){scheduleIdle(9000);return}
-
-    clearIdle();
-    var choices, line=null;
-    if(st.key==="seed"){
-      choices=["idle-wiggle","idle-settle","idle-settle"];
-      if(Math.random()<.18)line="Something moved under the soil.";
-    }else if(st.key==="sprout"){
-      choices=["idle-sway","idle-wiggle","idle-sway"];
-      if(S.sun<35&&Math.random()<.35)line="The sprout searches slowly for better light.";
-      else if(Math.random()<.14)line="Two small leaves turn without being asked.";
-    }else if(st.key==="shoot"){
-      choices=["idle-sway","idle-peek","idle-wiggle"];
-      if(S.water<32&&Math.random()<.35)line="Its leaves droop toward the dampest patch of soil.";
-      else if(Math.random()<.14)line="It tests the air with a slow turn.";
-    }else{
-      choices=["idle-peek","idle-hop","idle-sway","idle-peek"];
-      if(S.water<32&&Math.random()<.4)line="Creature Zero keeps glancing toward the watering spot.";
-      else if(S.sun<30&&Math.random()<.4)line="Creature Zero edges toward the brightest part of the plot.";
-      else if(Math.random()<.12)line=["Creature Zero studies something beyond the edge of the plot.","A root-foot scratches thoughtfully at the soil.","Creature Zero takes one completely unnecessary little hop."][Math.floor(Math.random()*3)];
-    }
-
-    var cls=choices[Math.floor(Math.random()*choices.length)];
-    creature.classList.add(cls);
-    if(st.key!=="seed"&&Math.random()<.45){
-      setTimeout(function(){creature.classList.add("blink");setTimeout(function(){creature.classList.remove("blink")},150)},180+Math.random()*350);
-    }
-    if(line)msg.textContent=line;
-    setTimeout(clearIdle,1300);
-    scheduleIdle();
+    clearTimeout(idleTimer);if(document.hidden){scheduleIdle();return}
+    var st=stageFor(S.growth);if(S.dormant){scheduleIdle(9000);return}
+    clearIdle();var choices,line=null;
+    if(st.key==="seed"){choices=["idle-wiggle","idle-settle","idle-settle"];if(Math.random()<.18)line="Something moved under the soil."}
+    else if(st.key==="sprout"){choices=["idle-sway","idle-wiggle","idle-sway"];if(S.sun<35&&Math.random()<.35)line="The sprout searches slowly for better light.";else if(Math.random()<.14)line="Two small leaves turn without being asked."}
+    else if(st.key==="shoot"){choices=["idle-sway","idle-peek","idle-wiggle"];if(S.water<32&&Math.random()<.35)line="Its leaves droop toward the dampest patch of soil.";else if(Math.random()<.14)line="It tests the air with a slow turn."}
+    else{choices=["idle-peek","idle-hop","idle-sway","idle-peek"];if(S.water<32&&Math.random()<.4)line="Creature Zero keeps glancing toward the watering spot.";else if(S.sun<30&&Math.random()<.4)line="Creature Zero edges toward the brightest part of the plot.";else if(Math.random()<.12)line=["Creature Zero studies something beyond the edge of the plot.","A root-foot scratches thoughtfully at the soil.","Creature Zero takes one completely unnecessary little hop."][Math.floor(Math.random()*3)]}
+    creature.classList.add(choices[Math.floor(Math.random()*choices.length)]);
+    if(st.key!=="seed"&&Math.random()<.45)setTimeout(function(){creature.classList.add("blink");setTimeout(function(){creature.classList.remove("blink")},150)},180+Math.random()*350);
+    if(line)msg.textContent=line;setTimeout(clearIdle,1300);scheduleIdle();
   }
-
-  function scheduleIdle(ms){
-    clearTimeout(idleTimer);
-    idleTimer=setTimeout(idleBehavior,ms||Math.round(4200+Math.random()*5200));
-  }
-
+  function scheduleIdle(ms){clearTimeout(idleTimer);idleTimer=setTimeout(idleBehavior,ms||Math.round(4200+Math.random()*5200))}
   function maybeStageMemory(oldKey){
     var st=stageFor(S.growth);
-    if(st.key!==oldKey){
-      remember("Creature Zero became a "+st.name+".");
-      msg.textContent="Something changed. "+st.name+".";
-    }
+    if(st.key!==oldKey){remember("Creature Zero became a "+st.name+".");msg.textContent="Something changed. "+st.name+"."}
   }
-
   function care(kind){
     if(S.dormant){
       if(kind==="water"&&S.water<86){S.water=clamp(S.water+24,0,100);S.health=clamp(S.health+4,0,100);S.care++;msg.textContent="The dry roots take a careful drink."}
       else if(kind==="sun"&&S.sun<86){S.sun=clamp(S.sun+24,0,100);S.health=clamp(S.health+4,0,100);S.care++;msg.textContent="Warmth reaches whatever is sleeping inside."}
-      else{msg.textContent=kind==="water"?"The soil is already wet enough.":"It has enough light for now."}
-      if(S.health>=24&&S.water>=28&&S.sun>=28){
-        S.dormant=false;
-        remember("Creature Zero woke from dormancy.");
-        msg.textContent="A tiny movement. Creature Zero wakes.";
-      }
+      else msg.textContent=kind==="water"?"The soil is already wet enough.":"It has enough light for now.";
+      if(S.health>=24&&S.water>=28&&S.sun>=28){S.dormant=false;remember("Creature Zero woke from dormancy.");msg.textContent="A tiny movement. Creature Zero wakes."}
       bounce();render();return;
     }
-
-    var oldKey=stageFor(S.growth).key;
-    var useful=false;
+    var oldKey=stageFor(S.growth).key,useful=false;
     if(kind==="water"){
-      if(S.water>=86){msg.textContent="It turns a leaf away. The soil is wet enough."}
-      else{
-        if(!S.memories.some(function(m){return m.text==="First drink."}))remember("First drink.");
-        S.water=clamp(S.water+24,0,100);useful=true;
-        msg.textContent=["The roots loosen beneath the soil.","A quiet shiver runs up the stem.","Water disappears into the earth."][S.care%3];
-      }
+      if(S.water>=86)msg.textContent="It turns a leaf away. The soil is wet enough.";
+      else{if(!S.memories.some(function(m){return m.text==="First drink."}))remember("First drink.");S.water=clamp(S.water+24,0,100);useful=true;msg.textContent=["The roots loosen beneath the soil.","A quiet shiver runs up the stem.","Water disappears into the earth."][S.care%3]}
     }else{
-      if(S.sun>=86){msg.textContent="It has stored enough light for now."}
-      else{
-        if(!S.memories.some(function(m){return m.text==="First sunlight."}))remember("First sunlight.");
-        S.sun=clamp(S.sun+24,0,100);useful=true;
-        msg.textContent=["It leans toward the warmth.","A leaf slowly turns toward the light.","For a moment, it seems taller."][S.care%3];
-      }
+      if(S.sun>=86)msg.textContent="It has stored enough light for now.";
+      else{if(!S.memories.some(function(m){return m.text==="First sunlight."}))remember("First sunlight.");S.sun=clamp(S.sun+24,0,100);useful=true;msg.textContent=["It leans toward the warmth.","A leaf slowly turns toward the light.","For a moment, it seems taller."][S.care%3]}
     }
-
     if(useful){
-      S.care++;
-      S.growth+=1.5;
+      S.care++;S.growth+=1;
       if(S.water>=30&&S.sun>=30)S.health=clamp(S.health+1.5,0,100);
       if(S.care===12)remember("It began reacting before your hand reached the controls.");
       if(S.care===25)remember("Its roots have started choosing their own paths.");
-      maybeStageMemory(oldKey);
-      bounce();
+      maybeStageMemory(oldKey);bounce();
     }
     render();
   }
 
   $("water").addEventListener("click",function(){care("water")});
   $("sun").addEventListener("click",function(){care("sun")});
-
-  var afterStage=stageFor(S.growth).key;
-  if(afterStage!==beforeStage)remember("Creature Zero changed while you were away.");
-
-  render();
-  scheduleIdle(1800);
+  render();scheduleIdle(1800);
   document.addEventListener("visibilitychange",function(){if(!document.hidden)scheduleIdle(900)});
 })();
 </script>
