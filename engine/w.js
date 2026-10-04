@@ -672,6 +672,9 @@ function returnFromExpedition(){
 
 const BATTLE_COMMAND=62;
 const BATTLE_EXECUTE=100;
+const BATTLE_MELEE_RANGE=1.12;
+const BATTLE_HEAVY_RADIUS=1.5;
+const BATTLE_ROOT_RANGE=4.75;
 const BATTLE_ACTIONS={
   quick:{name:"Quick Strike",cast:.62,damage:5,contact:true},
   root:{name:"Root Bind",cast:1.18,damage:2,contact:false},
@@ -727,8 +730,8 @@ function battleEnemyChoose(){
   battleLog(
     "Bramblejaw prepares "+B.E.action.name+".",
     heavy
-      ?"Its body swells with stored force. Interrupt it, bind it, or brace before ACTION."
-      :"A quicker attack. Less room to react."
+      ?"Its body swells with stored force. Leave the highlighted tiles, interrupt it, bind it, or brace before ACTION."
+      :"It is closing to melee range. Move away before ACTION and the swipe can miss."
   );
 }
 
@@ -806,6 +809,18 @@ function executeBattlePlayer(){
     return;
   }
 
+  const dist=battleDist(P,E);
+  if(a.name==="Quick Strike"&&dist>BATTLE_MELEE_RANGE){
+    E.missUntil=performance.now()+650;
+    battleLog("MISS · Quick Strike","Bramblejaw moved out of melee range before the strike landed.");
+    return;
+  }
+  if(a.name==="Root Bind"&&dist>BATTLE_ROOT_RANGE){
+    E.missUntil=performance.now()+650;
+    battleLog("MISS · Root Bind","The roots exhaust their reach before they can catch Bramblejaw.");
+    return;
+  }
+
   E.hp=Math.max(0,E.hp-a.damage);
   E.hitUntil=performance.now()+280;
   let thorned=false;
@@ -819,15 +834,17 @@ function executeBattlePlayer(){
   if(a.name==="Quick Strike"&&E.mode==="charging"){
     E.mode="moving";
     E.action=null;
+    E.moveFrom=null;E.moveTo=null;
     E.pos=Math.max(18,E.pos-31);
-    battleLog("Interrupt!","Quick Strike breaks Bramblejaw's action and knocks it backward."+(thorned?" Thorns prick Creature Zero for 1 damage.":""));
+    battleLog("Interrupt!","Quick Strike breaks Bramblejaw's action and knocks its timeline backward."+(thorned?" Thorns prick Creature Zero for 1 damage.":""));
   }else if(a.name==="Root Bind"){
     E.slow=.62;
     if(E.mode==="charging"){
       E.mode="moving";
       E.action=null;
+      E.moveFrom=null;E.moveTo=null;
       E.pos=24;
-      battleLog("Bound and cancelled.","Roots catch Bramblejaw mid-preparation and drag it backward. No contact, no thorn damage.");
+      battleLog("Bound and cancelled.","Roots catch Bramblejaw mid-preparation and drag its timeline backward. No contact, no thorn damage.");
     }else{
       E.pos=Math.max(8,E.pos-18);
       battleLog("Root Bind tightens.","Bramblejaw's next advance will be slower. The roots never touch its thorns.");
@@ -843,6 +860,21 @@ function executeBattleEnemy(){
   const P=B.P,E=B.E,a=E.action;
   E.mode="moving";E.action=null;E.pos=0;E.lungeUntil=performance.now()+260;
   clearActorMove(E);
+
+  const dist=battleDist(P,E);
+  const hits=a.name==="Heavy Bloom"
+    ?dist<=BATTLE_HEAVY_RADIUS
+    :dist<=BATTLE_MELEE_RANGE;
+
+  if(!hits){
+    P.missUntil=performance.now()+650;
+    if(a.name==="Heavy Bloom"){
+      battleLog("MISS · Heavy Bloom","Creature Zero escaped the bloom radius before it erupted.");
+    }else{
+      battleLog("MISS · Thorn Swipe","Creature Zero moved out of melee range before Bramblejaw could connect.");
+    }
+    return;
+  }
 
   let dmg=a.damage;
   if(P.shield){
@@ -1780,7 +1812,7 @@ function drawBattleArena(r,B,playerPanel,enemyPanel,now,interactive=false){
       let stroke=edge?"#708064":"#7d8e6e";
 
       const heavy=B.E.mode==="charging"&&B.E.action&&B.E.action.name==="Heavy Bloom";
-      if(heavy&&Math.hypot(x-B.E.x,y-B.E.y)<=1.5){
+      if(heavy&&Math.hypot(x-B.E.x,y-B.E.y)<=BATTLE_HEAVY_RADIUS){
         fill="#6a5b37";
         stroke="#d8bf6d";
       }
@@ -1827,6 +1859,9 @@ function drawBattleArena(r,B,playerPanel,enemyPanel,now,interactive=false){
     if(a.kind==="P")drawCreature(a.rect,now,{labels:false});
     else drawBramblejaw(a.rect,B,now);
   }
+
+  if(B.P.missUntil>now)text("MISS",pr.x+pr.w/2,pr.y-5,{size:11,weight:950,align:"center",color:"#e8ddad"});
+  if(B.E.missUntil>now)text("MISS",er.x+er.w/2,er.y-5,{size:11,weight:950,align:"center",color:"#e8ddad"});
 
   text("Creature Zero",pr.x+pr.w/2,pr.y+pr.h-22,{
     size:fitText("Creature Zero",pr.w-10,{maxSize:9.5,minSize:7,weight:900}),
@@ -1911,7 +1946,7 @@ function drawBattleInfo(r,B,u,interactive){
   const es={x:inner.x+half+gap,y:statusY,w:half,h:statusH};
   fillRound(ps,"#ffffff08",9);fillRound(es,"#ffffff08",9);
 
-  const pStatus=B.P.mode==="command"?"Choose":B.P.mode==="charging"?B.P.action.name+"…":"Advancing";
+  const pStatus=B.P.mode==="command"?"Choose":B.P.mode==="targeting"?"Choose tile":B.P.mode==="charging"?B.P.action.name+"…":"Advancing";
   const eStatus=B.E.mode==="charging"?B.E.action.name+"…":"Advancing";
   text("Creature Zero",ps.x+8,ps.y+5,{size:8,weight:700,color:"#829689"});
   text(pStatus,ps.x+8,ps.y+18,{size:fitText(pStatus,ps.w-16,{maxSize:10,minSize:8,weight:850}),weight:850,color:"#eef3df"});
@@ -1942,8 +1977,8 @@ function drawBattleInfo(r,B,u,interactive){
 
   const canChoose=interactive&&B.P.mode==="command";
   const cmds=[
-    ["quick","Quick Strike","approach · 5 dmg · contact","#789b58"],
-    ["root","Root Bind","ranged · cancel · slow","#47754d"],
+    ["quick","Quick Strike","close to melee · 5 dmg · contact","#789b58"],
+    ["root","Root Bind","range 4.75 · cancel · slow","#47754d"],
     ["brace","Brace","reduce next hit · +1 HP","#3b5144"],
     ["move","Move","tap arena · distance costs time","#405d52"]
   ];
