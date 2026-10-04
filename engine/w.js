@@ -1103,7 +1103,7 @@ function drawExpeditionInfo(r,R,u,interactive){
   if(R.encounter&&R.encounter.type==="battle"){
     const gap=7,bh=Math.min(48,available);
     const half=(inner.w-gap)/2;
-    drawButton("battle-go",{x:inner.x,y:inner.y+inner.h-bh,w:half,h:bh},"⚔️ Stand ground",startBattle,{fill:"#5b4638",size:12});
+    drawButton("battle-go",{x:inner.x,y:inner.y+inner.h-bh,w:half,h:bh},"Stand ground",startBattle,{fill:"#5b4638",size:12});
     drawButton("battle-back",{x:inner.x+half+gap,y:inner.y+inner.h-bh,w:half,h:bh},"Back away",avoidExpeditionBattle,{fill:"#355641",size:12});
     return;
   }
