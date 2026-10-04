@@ -686,8 +686,8 @@ function battleDefaults(){
     result:null,
     logTitle:"Bramblejaw blocks the trail.",
     logText:"Creature Zero plants its root-feet. Neither side has committed yet.",
-    P:{name:"Creature Zero",hp:28,maxHp:28,pos:0,speed:18,mode:"moving",action:null,shield:0,slow:1,hitUntil:0,lungeUntil:0,x:-.58,y:.20,moveFrom:null,moveTo:null},
-    E:{name:"Bramblejaw",hp:24,maxHp:24,pos:9,speed:14,mode:"moving",action:null,shield:0,slow:1,hitUntil:0,lungeUntil:0,x:.54,y:-.16,moveFrom:null,moveTo:null}
+    P:{name:"Creature Zero",hp:28,maxHp:28,pos:0,speed:18,mode:"moving",action:null,shield:0,slow:1,hitUntil:0,lungeUntil:0,x:-2,y:1,moveFrom:null,moveTo:null},
+    E:{name:"Bramblejaw",hp:24,maxHp:24,pos:9,speed:14,mode:"moving",action:null,shield:0,slow:1,hitUntil:0,lungeUntil:0,x:2,y:-1,moveFrom:null,moveTo:null}
   };
 }
 
@@ -717,9 +717,9 @@ function battleEnemyChoose(){
   if(heavy){
     B.E.moveFrom=null;B.E.moveTo=null;
   }else{
-    const to=battleApproachPoint(B.E,B.P,.27);
+    const to=battleApproachPoint(B.E,B.P,1);
     const d=battleDist(B.E,to);
-    B.E.action.cast=.56+d*.48;
+    B.E.action.cast=.50+d*.16;
     startActorMove(B.E,to);
   }
   B.E.mode="charging";
@@ -735,15 +735,13 @@ function battleEnemyChoose(){
 function battleDist(a,b){
   return Math.hypot((a.x||0)-(b.x||0),(a.y||0)-(b.y||0));
 }
-function battleClampPoint(x,y,r=.86){
-  const d=Math.hypot(x,y);
-  if(d<=r)return {x,y};
-  const k=r/Math.max(.0001,d);
-  return {x:x*k,y:y*k};
+function battleClampPoint(x,y){
+  return {x:clamp(Math.round(x),-3,3),y:clamp(Math.round(y),-3,3)};
 }
-function battleApproachPoint(from,to,stop=.24){
-  const dx=from.x-to.x,dy=from.y-to.y,d=Math.hypot(dx,dy)||1;
-  return battleClampPoint(to.x+dx/d*stop,to.y+dy/d*stop);
+function battleApproachPoint(from,to,stop=1){
+  const dx=from.x-to.x,dy=from.y-to.y;
+  if(Math.abs(dx)>=Math.abs(dy))return battleClampPoint(to.x+(dx>=0?stop:-stop),to.y);
+  return battleClampPoint(to.x,to.y+(dy>=0?stop:-stop));
 }
 function startActorMove(A,to){
   A.moveFrom={x:A.x,y:A.y};
@@ -767,9 +765,9 @@ function chooseBattleAction(kind){
 
   B.P.action={...BATTLE_ACTIONS[kind]};
   if(kind==="quick"){
-    const to=battleApproachPoint(B.P,B.E,.24);
+    const to=battleApproachPoint(B.P,B.E,1);
     const d=battleDist(B.P,to);
-    B.P.action.cast=.42+d*.55;
+    B.P.action.cast=.38+d*.18;
     startActorMove(B.P,to);
   }else{
     B.P.moveFrom=null;B.P.moveTo=null;
@@ -783,7 +781,7 @@ function chooseBattleMoveTarget(x,y){
   if(!B||B.P.mode!=="targeting")return;
   const to=battleClampPoint(x,y);
   const d=Math.hypot(to.x-B.P.x,to.y-B.P.y);
-  B.P.action={...BATTLE_ACTIONS.move,cast:.28+d*.95};
+  B.P.action={...BATTLE_ACTIONS.move,cast:.28+d*.22};
   startActorMove(B.P,to);
   B.P.mode="charging";
   B.paused=false;
@@ -1661,8 +1659,8 @@ function drawExpeditionInfo(r,R,u,interactive){
 
 function battleLayout(w,h,pad,contentY,contentH,W){
   const area={x:pad,y:contentY,w:w-pad*2,h:contentH};
-  const portraitArena={x:area.x,y:area.y,w:area.w,h:area.h*.40};
-  const portraitInfo={x:area.x,y:area.y+area.h*.42,w:area.w,h:area.h*.58};
+  const portraitArena={x:area.x,y:area.y,w:area.w,h:area.h*.49};
+  const portraitInfo={x:area.x,y:area.y+area.h*.51,w:area.w,h:area.h*.49};
   const wideArena={x:area.x,y:area.y,w:area.w*.48,h:area.h};
   const wideInfo={x:area.x+area.w*.50,y:area.y,w:area.w*.50,h:area.h};
   const arena=mixRect(portraitArena,wideArena,W);
@@ -1746,104 +1744,104 @@ function drawBramblejaw(panel,B,now){
 }
 
 function battleArenaGeom(r){
-  return {
-    cx:r.x+r.w*.5,
-    cy:r.y+r.h*.56,
-    rx:r.w*.38,
-    ry:r.h*.22
-  };
+  const tw=clamp(Math.min(r.w*.17,r.h*.145),42,72),th=tw*.5;
+  return {tw,th,ox:r.x+r.w*.50,oy:r.y+r.h*.46};
 }
 function battleWorldToScreen(r,x,y){
   const G=battleArenaGeom(r);
-  return {
-    x:G.cx+(x-y)*G.rx*.62,
-    y:G.cy+(x+y)*G.ry*.62
-  };
+  return {x:G.ox+(x-y)*G.tw*.5,y:G.oy+(x+y)*G.th*.5};
 }
 function battleScreenToWorld(r,sx,sy){
   const G=battleArenaGeom(r);
-  const a=(sx-G.cx)/(G.rx*.62);
-  const b=(sy-G.cy)/(G.ry*.62);
+  const a=(sx-G.ox)/(G.tw*.5),b=(sy-G.oy)/(G.th*.5);
   return battleClampPoint((a+b)/2,(b-a)/2);
 }
-function battleActorRect(r,A,enemy=false){
-  const p=battleWorldToScreen(r,A.x||0,A.y||0);
-  const s=Math.min(r.w*.25,r.h*.44);
-  return {x:p.x-s*.5,y:p.y-s*.78,w:s,h:s};
+function battleActorRect(r,A){
+  const G=battleArenaGeom(r),p=battleWorldToScreen(r,A.x||0,A.y||0);
+  const s=G.tw*.82;
+  return {x:p.x-s*.5,y:p.y-s*.86,w:s,h:s};
+}
+function battleTileDistance(a,b){
+  return Math.hypot((a.x||0)-(b.x||0),(a.y||0)-(b.y||0));
 }
 function drawBattleArena(r,B,playerPanel,enemyPanel,now,interactive=false){
-  fillRound(r,"#10271a",20);
+  fillRound(r,"#0b2118",20);
   strokeRound(r,"#ffffff14",20,1);
 
   const G=battleArenaGeom(r);
+  ctx.save();rrPath(r.x,r.y,r.w,r.h,20);ctx.clip();
 
-  // True circular battle-space, projected into the isometric view.
-  ctx.beginPath();
-  ctx.ellipse(G.cx,G.cy,G.rx,G.ry,0,0,Math.PI*2);
-  ctx.fillStyle="#59452f";
-  ctx.fill();
-  ctx.strokeStyle="#9a845d";
-  ctx.lineWidth=3;
-  ctx.stroke();
+  // Classic isometric battle floor. The tiles are now the arena.
+  for(let y=-3;y<=3;y++){
+    for(let x=-3;x<=3;x++){
+      const p=battleWorldToScreen(r,x,y);
+      const edge=Math.max(Math.abs(x),Math.abs(y))===3;
+      let fill=edge?"#3f533a":"#4b613f";
+      let stroke=edge?"#708064":"#7d8e6e";
 
-  ctx.beginPath();
-  ctx.ellipse(G.cx,G.cy,G.rx*.91,G.ry*.91,0,0,Math.PI*2);
-  ctx.strokeStyle="#c2ad7b33";
-  ctx.lineWidth=2;
-  ctx.stroke();
+      const heavy=B.E.mode==="charging"&&B.E.action&&B.E.action.name==="Heavy Bloom";
+      if(heavy&&Math.hypot(x-B.E.x,y-B.E.y)<=1.5){
+        fill="#6a5b37";
+        stroke="#d8bf6d";
+      }
+      if(B.P.mode==="targeting"){
+        fill=edge?"#486144":"#58744a";
+        stroke="#a7c984";
+      }
+      isoDiamond(G,x,y,fill,stroke);
+      if(B.P.mode==="targeting"){
+        ctx.beginPath();ctx.arc(p.x,p.y,2.4,0,Math.PI*2);
+        ctx.fillStyle="#dff6a988";ctx.fill();
+      }
+    }
+  }
 
-  // Subtle axes make the projection readable without turning it into a tile grid.
-  ctx.strokeStyle="#ffffff0d";
-  ctx.lineWidth=1;
-  for(const q of [-.5,0,.5]){
-    const a=battleWorldToScreen(r,-.85,q),b=battleWorldToScreen(r,.85,q);
-    ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();
-    const c=battleWorldToScreen(r,q,-.85),d=battleWorldToScreen(r,q,.85);
-    ctx.beginPath();ctx.moveTo(c.x,c.y);ctx.lineTo(d.x,d.y);ctx.stroke();
+  // Reuse Mossglass vocabulary around the battle floor.
+  const scenery=[
+    {type:"glassTree",x:-3,y:-3},{type:"glassTree",x:3,y:2},
+    {type:"rock",x:3,y:-3},{type:"rock",x:-2,y:3},
+    {type:"thorn",x:2,y:3},{type:"thorn",x:-3,y:1}
+  ];
+  for(const o of scenery.sort((a,b)=>(a.x+a.y)-(b.x+b.y))){
+    if(o.type==="glassTree")drawGlassTree(G,o,now);
+    else if(o.type==="rock")drawIsoRock(G,o);
+    else drawThornPatch(G,o);
   }
 
   const heavy=B.E.mode==="charging"&&B.E.action&&B.E.action.name==="Heavy Bloom";
   if(heavy){
     const ep=battleWorldToScreen(r,B.E.x,B.E.y);
-    const rad=.34;
-    ctx.beginPath();
-    ctx.ellipse(ep.x,ep.y,G.rx*rad,G.ry*rad,0,0,Math.PI*2);
-    ctx.fillStyle="#d8b85a22";ctx.fill();
-    ctx.strokeStyle="#e5ca78aa";ctx.lineWidth=3;ctx.stroke();
-    text("HEAVY BLOOM",ep.x,ep.y-G.ry*rad-17,{size:10,weight:950,align:"center",color:"#f3d987"});
+    text("HEAVY BLOOM",ep.x,ep.y-G.th*2.1,{size:10,weight:950,align:"center",color:"#f3d987"});
   }
 
-  if(B.P.mode==="targeting"){
-    ctx.beginPath();
-    ctx.ellipse(G.cx,G.cy,G.rx*.96,G.ry*.96,0,0,Math.PI*2);
-    ctx.strokeStyle="#bce77f";ctx.lineWidth=2;ctx.setLineDash([6,6]);ctx.stroke();ctx.setLineDash([]);
-    text("tap a destination",G.cx,r.y+12,{size:10,weight:850,align:"center",color:"#cfeaa7"});
-  }
-
-  let pr=battleActorRect(r,B.P,false);
-  let er=battleActorRect(r,B.E,true);
+  let pr=battleActorRect(r,B.P);
+  let er=battleActorRect(r,B.E);
   pr=battleActorPanel(pr,B.P,false,now);
   er=battleActorPanel(er,B.E,true,now);
 
-  // Depth-sort by projected feet so crossing paths remains believable.
   const actors=[
     {kind:"P",rect:pr,foot:pr.y+pr.h},
     {kind:"E",rect:er,foot:er.y+er.h}
   ].sort((a,b)=>a.foot-b.foot);
-
   for(const a of actors){
     if(a.kind==="P")drawCreature(a.rect,now,{labels:false});
     else drawBramblejaw(a.rect,B,now);
   }
 
-  text("Creature Zero",pr.x+pr.w/2,pr.y+pr.h-25,{
-    size:fitText("Creature Zero",pr.w-12,{maxSize:10,minSize:7.5,weight:900}),
+  text("Creature Zero",pr.x+pr.w/2,pr.y+pr.h-22,{
+    size:fitText("Creature Zero",pr.w-10,{maxSize:9.5,minSize:7,weight:900}),
     weight:900,align:"center",color:"#eef3df"
   });
 
-  const hpPad=6;
-  drawBattleHp({x:pr.x+hpPad,y:pr.y+pr.h-7,w:Math.max(20,pr.w-hpPad*2),h:7},B.P.hp,B.P.maxHp,"#8fc968");
-  drawBattleHp({x:er.x+hpPad,y:er.y+er.h-7,w:Math.max(20,er.w-hpPad*2),h:7},B.E.hp,B.E.maxHp,"#c98768");
+  const hpPad=5;
+  drawBattleHp({x:pr.x+hpPad,y:pr.y+pr.h-6,w:Math.max(20,pr.w-hpPad*2),h:7},B.P.hp,B.P.maxHp,"#8fc968");
+  drawBattleHp({x:er.x+hpPad,y:er.y+er.h-6,w:Math.max(20,er.w-hpPad*2),h:7},B.E.hp,B.E.maxHp,"#c98768");
+
+  ctx.restore();
+
+  if(B.P.mode==="targeting"){
+    text("Choose a tile",r.x+r.w/2,r.y+12,{size:10,weight:850,align:"center",color:"#dff6a9"});
+  }
 
   if(interactive&&B.P.mode==="targeting"){
     registerHit("battle-arena-move",r,()=>{
@@ -1951,10 +1949,13 @@ function drawBattleInfo(r,B,u,interactive){
   ];
 
   if(state.W.layout<.5){
-    const bh=Math.min(38,(available-18)/4);
-    const start=inner.y+inner.h-(bh*4+18);
+    const gap=6;
+    const bw=(inner.w-gap)/2;
+    const bh=Math.min(46,(available-gap)/2);
+    const start=inner.y+inner.h-(bh*2+gap);
     cmds.forEach((cmd,i)=>drawBattleCommand(
-      "cmd-"+cmd[0],{x:inner.x,y:start+i*(bh+6),w:inner.w,h:bh},
+      "cmd-"+cmd[0],
+      {x:inner.x+(i%2)*(bw+gap),y:start+Math.floor(i/2)*(bh+gap),w:bw,h:bh},
       cmd[1],cmd[2],cmd[3],()=>chooseBattleAction(cmd[0]),canChoose
     ));
   }else{
