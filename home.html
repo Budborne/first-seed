@@ -83,7 +83,7 @@ pointer-events:none}
 (function(){
   const KEY="budborne:home-v1", CREATURE="budborne:first-seed";
   let S;try{S=JSON.parse(localStorage.getItem(KEY)||"{}")}catch(e){S={}}
-  S={hour:Number.isFinite(S.hour)?S.hour:8,day:S.day||1,seeds:Number.isFinite(S.seeds)?S.seeds:3,moist:Number.isFinite(S.moist)?S.moist:70,crops:Array.isArray(S.crops)?S.crops:[0,0,0],...S};
+  S={hour:Number.isFinite(S.hour)?S.hour:8,day:S.day||1,seeds:Number.isFinite(S.seeds)?S.seeds:3,moist:Number.isFinite(S.moist)?S.moist:70,crops:Array.isArray(S.crops)?S.crops:[0,0,0],inventory:S.inventory||{wildSeed:0,resin:0,dewstone:0},...S};if(!S.inventory)S.inventory={wildSeed:0,resin:0,dewstone:0};
   const $=id=>document.getElementById(id);
   const places={
     house:{title:"Cottage",desc:"A small place to sleep, plan, and keep the weather off your head. Resting advances only your home timeline."},
@@ -130,13 +130,25 @@ pointer-events:none}
       const a=document.createElement("a");a.className="linkbtn";a.href="./";a.textContent="Visit Creature Zero";
       box.append(a,action("Watch quietly",()=>{$("desc").textContent="You sit beside the patch. Creature Zero is not impressed. Time passes anyway.";advance(.25)},"secondary"));
     }else if(name==="shed"){
-      box.append(action("Check seed pouch",()=>{$("desc").textContent="You currently have "+S.seeds+" sample seed"+(S.seeds===1?"":"s")+". Expedition loot will eventually stack here."},"secondary"),action("Crafting bench",()=>{$("desc").textContent="Nothing to craft yet. The bench exists mostly because future-you insisted."},"muted"));
+      box.append(action("Check stores",()=>{
+        const I=S.inventory||{};
+        $("desc").textContent="Seeds: "+S.seeds+" · Amber Resin: "+(I.resin||0)+" · Dewstone: "+(I.dewstone||0)+".";
+      },"secondary"),action("Crafting bench",()=>{$("desc").textContent="Nothing to craft yet. The bench exists mostly because future-you insisted."},"muted"));
     }else if(name==="gate"){
-      box.append(action("Scout nearby · 2h",()=>{advance(2);$("desc").textContent="You follow the trail until the clearing disappears behind the trees, then turn back. Expedition mockup comes next."}),action("Expedition",()=>{$("desc").textContent="Not wired yet. Eventually success advances home by the expedition duration; failure advances it much less."},"muted"));
+      const a=document.createElement("a");a.className="linkbtn";a.href="expedition.html";a.textContent="Enter Mossglass Hollow";
+      box.append(a,action("Scout nearby · 2h",()=>{advance(2);$("desc").textContent="You follow the trail until the clearing disappears behind the trees, then turn back."},"secondary"));
     }
   }
   document.querySelectorAll("[data-place]").forEach(b=>b.addEventListener("click",()=>select(b.dataset.place)));
-  render();select("creature");
+  render();
+  if(S.lastExpedition&&Date.now()-S.lastExpedition.at<120000){
+    const e=S.lastExpedition;
+    $("title").textContent=e.success?"Back from Mossglass Hollow":"Back from the trail";
+    $("desc").textContent=(e.success?"Expedition complete. ":"You returned early. ")+e.homeTime.toFixed(1)+" hours passed here at home while "+e.trailTime.toFixed(1)+" hours passed on the trail.";
+    const box=$("actions");box.replaceChildren();
+    const a=document.createElement("a");a.className="linkbtn";a.href="expedition.html";a.textContent="Go back out";
+    box.append(a,action("Check the clearing",()=>select("creature"),"secondary"));
+  }else select("creature");
 })();
 </script>
 </body>
