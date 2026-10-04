@@ -79,6 +79,7 @@ const state={
   lastFrame:performance.now(),
   home:null,
   expedition:null,
+  battle:null,
   homeSelected:null,
   homeMessage:"Tap somewhere in the clearing.",
   pointer:{x:0,y:0,down:false},
@@ -528,7 +529,8 @@ function startBattle(){
   const R=state.expedition;
   R.battlePending=true;
   saveExpedition();
-  window.location.href="./battle.html";
+  state.battle=battleDefaults();
+  goScene(3);
 }
 
 function resolveExpeditionChoice(choiceIndex){
@@ -665,6 +667,215 @@ function returnFromExpedition(){
   state.expedition=expeditionDefaults();
   sessionStorage.removeItem(EXP_KEY);
   goScene(1);
+}
+
+const BATTLE_COMMAND=62;
+const BATTLE_EXECUTE=100;
+const BATTLE_ACTIONS={
+  quick:{name:"Quick Strike",cast:.62,damage:5,contact:true},
+  root:{name:"Root Bind",cast:1.18,damage:2,contact:false},
+  brace:{name:"Brace",cast:.38,damage:0,contact:false}
+};
+
+function battleDefaults(){
+  return {
+    ended:false,
+    paused:false,
+    result:null,
+    logTitle:"Bramblejaw blocks the trail.",
+    logText:"Creature Zero plants its root-feet. Neither side has committed yet.",
+    P:{name:"Creature Zero",hp:28,maxHp:28,pos:0,speed:18,mode:"moving",action:null,shield:0,slow:1,hitUntil:0,lungeUntil:0},
+    E:{name:"Bramblejaw",hp:24,maxHp:24,pos:9,speed:14,mode:"moving",action:null,shield:0,slow:1,hitUntil:0,lungeUntil:0}
+  };
+}
+
+function battleLog(title,body){
+  const B=state.battle;
+  if(!B)return;
+  B.logTitle=title;
+  B.logText=body;
+}
+
+function enterBattleCommand(){
+  const B=state.battle;
+  if(!B||B.ended)return;
+  B.P.pos=BATTLE_COMMAND;
+  B.P.mode="command";
+  B.paused=true;
+  battleLog("COMMAND","Bramblejaw keeps moving only after you choose. Read where it is on the timeline.");
+}
+
+function battleEnemyChoose(){
+  const B=state.battle;
+  if(!B||B.ended)return;
+  const heavy=Math.random()<.5;
+  B.E.action=heavy
+    ?{name:"Heavy Bloom",cast:1.55,damage:7,interrupt:12}
+    :{name:"Thorn Swipe",cast:.82,damage:4,interrupt:7};
+  B.E.mode="charging";
+  B.E.pos=BATTLE_COMMAND;
+  battleLog(
+    "Bramblejaw prepares "+B.E.action.name+".",
+    heavy
+      ?"Its body swells with stored force. Interrupt it, bind it, or brace before ACTION."
+      :"A quicker attack. Less room to react."
+  );
+}
+
+function chooseBattleAction(kind){
+  const B=state.battle;
+  if(!B||B.ended||B.P.mode!=="command")return;
+  B.P.action={...BATTLE_ACTIONS[kind]};
+  B.P.mode="charging";
+  B.paused=false;
+  battleLog(B.P.action.name+" selected.","Creature Zero still has to reach ACTION before it happens.");
+}
+
+function executeBattlePlayer(){
+  const B=state.battle;
+  const P=B.P,E=B.E,a=P.action;
+  P.mode="moving";P.action=null;P.pos=0;P.lungeUntil=performance.now()+260;
+
+  if(a.name==="Brace"){
+    P.shield=.55;
+    P.hp=Math.min(P.maxHp,P.hp+1);
+    battleLog("Creature Zero braces.","Leaves tuck tight. The next hit will be softened.");
+    return;
+  }
+
+  E.hp=Math.max(0,E.hp-a.damage);
+  E.hitUntil=performance.now()+280;
+  let thorned=false;
+
+  if(a.contact){
+    P.hp=Math.max(0,P.hp-1);
+    P.hitUntil=performance.now()+280;
+    thorned=true;
+  }
+
+  if(a.name==="Quick Strike"&&E.mode==="charging"){
+    E.mode="moving";
+    E.action=null;
+    E.pos=Math.max(18,E.pos-31);
+    battleLog("Interrupt!","Quick Strike breaks Bramblejaw's action and knocks it backward."+(thorned?" Thorns prick Creature Zero for 1 damage.":""));
+  }else if(a.name==="Root Bind"){
+    E.slow=.62;
+    if(E.mode==="charging"){
+      E.mode="moving";
+      E.action=null;
+      E.pos=24;
+      battleLog("Bound and cancelled.","Roots catch Bramblejaw mid-preparation and drag it backward. No contact, no thorn damage.");
+    }else{
+      E.pos=Math.max(8,E.pos-18);
+      battleLog("Root Bind tightens.","Bramblejaw's next advance will be slower. The roots never touch its thorns.");
+    }
+  }else{
+    battleLog(a.name+" lands.",a.damage+" damage."+(thorned?" Thorns deal 1 back.":""));
+  }
+  checkBattleEnd();
+}
+
+function executeBattleEnemy(){
+  const B=state.battle;
+  const P=B.P,E=B.E,a=E.action;
+  E.mode="moving";E.action=null;E.pos=0;E.lungeUntil=performance.now()+260;
+
+  let dmg=a.damage;
+  if(P.shield){
+    dmg=Math.max(1,Math.round(dmg*(1-P.shield)));
+    P.shield=0;
+  }
+
+  P.hp=Math.max(0,P.hp-dmg);
+  P.hitUntil=performance.now()+280;
+  if(P.mode==="charging"){
+    P.pos=Math.max(BATTLE_COMMAND,P.pos-a.interrupt);
+    battleLog(a.name+" lands.","Creature Zero takes "+dmg+" damage and loses some preparation.");
+  }else{
+    battleLog(a.name+" lands.","Creature Zero takes "+dmg+" damage.");
+  }
+  checkBattleEnd();
+}
+
+function checkBattleEnd(){
+  const B=state.battle;
+  if(B.E.hp<=0&&B.P.hp<=0)endBattle("mutual");
+  else if(B.E.hp<=0)endBattle("victory");
+  else if(B.P.hp<=0)endBattle("defeat");
+}
+
+function endBattle(outcome){
+  const B=state.battle;
+  if(!B||B.ended)return;
+  B.ended=true;
+  B.paused=true;
+
+  const victory=outcome==="victory";
+  const mutual=outcome==="mutual";
+  B.result={
+    victory,
+    mutual,
+    trailTime:victory?.7:(mutual?.6:.45),
+    loot:(victory||mutual)?{resin:1}:{},
+    at:Date.now()
+  };
+
+  battleLog(
+    victory?"Bramblejaw yields the trail.":mutual?"A very prickly draw.":"Creature Zero is knocked back.",
+    victory
+      ?"Creature Zero wins its first fight. Amber Resin remains on the trail."
+      :mutual
+        ?"Bramblejaw falls, but its thorns take Creature Zero down too."
+        :"Bramblejaw holds the trail. The expedition survives, but vigor will pay for it."
+  );
+}
+
+function advanceBattleActor(A,dt,isPlayer){
+  if(A.mode==="moving"){
+    const slow=A.slow||1;
+    A.pos+=A.speed*slow*dt;
+    if(A.slow<1&&A.pos>=BATTLE_COMMAND)A.slow=1;
+    if(A.pos>=BATTLE_COMMAND){
+      if(isPlayer)enterBattleCommand();
+      else battleEnemyChoose();
+    }
+  }else if(A.mode==="charging"){
+    A.pos+=(BATTLE_EXECUTE-BATTLE_COMMAND)/A.action.cast*dt;
+    if(A.pos>=BATTLE_EXECUTE){
+      A.pos=BATTLE_EXECUTE;
+      if(isPlayer)executeBattlePlayer();
+      else executeBattleEnemy();
+    }
+  }
+}
+
+function tickBattle(dt){
+  const B=state.battle;
+  if(!B||B.ended||B.paused||stageFor(state.creature.growth).key!=="budborn")return;
+  advanceBattleActor(B.P,dt,true);
+  advanceBattleActor(B.E,dt,false);
+}
+
+function returnBattleToExpedition(){
+  const B=state.battle;
+  if(!B||!B.ended||!B.result)return;
+  sessionStorage.setItem(BATTLE_RESULT_KEY,JSON.stringify(B.result));
+  consumeBattleResult();
+  state.battle=null;
+  goScene(2);
+}
+
+function battleActorPanel(panel,actor,isEnemy,now){
+  let dx=0;
+  if(actor.lungeUntil>now){
+    const p=1-(actor.lungeUntil-now)/260;
+    dx=Math.sin(clamp(p,0,1)*Math.PI)*(isEnemy?-20:20);
+  }
+  if(actor.hitUntil>now){
+    const p=1-(actor.hitUntil-now)/280;
+    dx+=Math.sin(p*Math.PI*5)*(isEnemy?5:-5);
+  }
+  return {...panel,x:panel.x+dx};
 }
 
 function hangout(){
@@ -834,7 +1045,7 @@ function drawCreature(panel,now){
 }
 
 function goScene(target){
-  state.sceneTarget=clamp(Number(target)||0,0,2);
+  state.sceneTarget=clamp(Number(target)||0,0,3);
   if(state.sceneTarget!==1)state.homeSelected=null;
   state.pressed=null;
 }
@@ -1140,6 +1351,231 @@ function drawExpeditionInfo(r,R,u,interactive){
   drawButton("exp-retreat",{x:inner.x+half+gap,y:inner.y+inner.h-bh,w:half,h:bh},"Return home",returnFromExpedition,{fill:"#355641",size:12});
 }
 
+function battleLayout(w,h,pad,contentY,contentH,W){
+  const area={x:pad,y:contentY,w:w-pad*2,h:contentH};
+  const portraitArena={x:area.x,y:area.y,w:area.w,h:area.h*.40};
+  const portraitInfo={x:area.x,y:area.y+area.h*.42,w:area.w,h:area.h*.58};
+  const wideArena={x:area.x,y:area.y,w:area.w*.48,h:area.h};
+  const wideInfo={x:area.x+area.w*.50,y:area.y,w:area.w*.50,h:area.h};
+  const arena=mixRect(portraitArena,wideArena,W);
+  const info=mixRect(portraitInfo,wideInfo,W);
+
+  const playerPortrait={x:arena.x+arena.w*.04,y:arena.y+arena.h*.29,w:arena.w*.43,h:arena.h*.64};
+  const enemyPortrait={x:arena.x+arena.w*.53,y:arena.y+arena.h*.29,w:arena.w*.43,h:arena.h*.64};
+  const playerWide={x:arena.x+arena.w*.04,y:arena.y+arena.h*.35,w:arena.w*.43,h:arena.h*.55};
+  const enemyWide={x:arena.x+arena.w*.53,y:arena.y+arena.h*.35,w:arena.w*.43,h:arena.h*.55};
+
+  return {
+    arena,info,
+    player:mixRect(playerPortrait,playerWide,W),
+    enemy:mixRect(enemyPortrait,enemyWide,W)
+  };
+}
+
+function drawBattleHp(r,value,max,color){
+  const track={x:r.x,y:r.y,w:r.w,h:7};
+  fillRound(track,"#ffffff14",4);
+  const pct=clamp(value/max,0,1);
+  if(pct>0)fillRound({...track,w:Math.max(4,track.w*pct)},color,4);
+}
+
+function drawBramblejaw(panel,B,now){
+  const E=B.E;
+  const heavy=E.mode==="charging"&&E.action&&E.action.name==="Heavy Bloom";
+  const p=battleActorPanel(panel,E,true,now);
+  const s=Math.min(p.w,p.h);
+  const cx=p.x+p.w/2;
+  const cy=p.y+p.h*.57;
+  const pulse=heavy?1+Math.sin(now/105)*.055:1;
+
+  if(heavy){
+    ctx.beginPath();
+    ctx.arc(cx,cy,s*.24+Math.sin(now/120)*5,0,Math.PI*2);
+    ctx.strokeStyle="#e5ca7866";
+    ctx.lineWidth=6;
+    ctx.stroke();
+    text("HEAVY BLOOM",cx,p.y+6,{
+      size:fitText("HEAVY BLOOM",p.w-16,{maxSize:11,minSize:8,weight:950}),
+      weight:950,align:"center",color:"#f3d987"
+    });
+  }
+
+  ctx.save();
+  ctx.translate(cx,cy);
+  ctx.scale(pulse,pulse);
+
+  ctx.fillStyle="#6e8f47";
+  ctx.beginPath();
+  ctx.ellipse(0,0,s*.18,s*.26,0,0,Math.PI*2);
+  ctx.fill();
+
+  ctx.strokeStyle="#5c7c3b";
+  ctx.lineWidth=Math.max(5,s*.035);
+  ctx.lineCap="round";
+  ctx.beginPath();ctx.moveTo(-s*.12,-s*.02);ctx.lineTo(-s*.26,-s*.10);ctx.lineTo(-s*.28,-s*.22);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(s*.12,s*.01);ctx.lineTo(s*.25,-s*.05);ctx.lineTo(s*.27,-s*.18);ctx.stroke();
+
+  ctx.fillStyle="#102218";
+  ctx.beginPath();ctx.arc(-s*.055,-s*.045,2.6,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.arc(s*.055,-s*.045,2.6,0,Math.PI*2);ctx.fill();
+
+  ctx.strokeStyle="#d7c59b";
+  ctx.lineWidth=1.4;
+  for(const a of [-2.7,-2.1,-1.55,-1.05,-.45,.1,.65,1.15,1.7,2.3]){
+    const x=Math.cos(a)*s*.17,y=Math.sin(a)*s*.23;
+    ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+Math.cos(a)*7,y+Math.sin(a)*7);ctx.stroke();
+  }
+  ctx.restore();
+
+  text("Bramblejaw",p.x+p.w/2,p.y+p.h-27,{
+    size:fitText("Bramblejaw",p.w-16,{maxSize:12,minSize:9,weight:900}),
+    weight:900,align:"center",color:"#eef3df"
+  });
+  text("Thorns · contact +1",p.x+p.w/2,p.y+p.h-12,{
+    size:fitText("Thorns · contact +1",p.w-16,{maxSize:9,minSize:7,weight:750}),
+    weight:750,align:"center",color:"#d9b28b"
+  });
+}
+
+function drawBattleArena(r,B,playerPanel,enemyPanel,now){
+  fillRound(r,"#10271a",20);
+  strokeRound(r,"#ffffff14",20,1);
+
+  ctx.beginPath();
+  ctx.ellipse(r.x+r.w/2,r.y+r.h*.84,r.w*.39,r.h*.09,0,0,Math.PI*2);
+  ctx.fillStyle="#63492f55";
+  ctx.fill();
+
+  const player=battleActorPanel(playerPanel,B.P,false,now);
+  const enemy=battleActorPanel(enemyPanel,B.E,true,now);
+
+  drawBramblejaw(enemyPanel,B,now);
+
+  const hpPad=10;
+  drawBattleHp(
+    {x:player.x+hpPad,y:player.y+player.h-8,w:Math.max(20,player.w-hpPad*2),h:7},
+    B.P.hp,B.P.maxHp,"#8fc968"
+  );
+  drawBattleHp(
+    {x:enemy.x+hpPad,y:enemy.y+enemy.h-8,w:Math.max(20,enemy.w-hpPad*2),h:7},
+    B.E.hp,B.E.maxHp,"#c98768"
+  );
+}
+
+function drawBattleTimeline(r,B,u){
+  fillRound(r,"#07120d",12);
+  strokeRound(r,"#ffffff12",12,1);
+
+  const top=r.y+18;
+  const lineY=r.y+r.h*.56;
+  const left=r.x+12,right=r.x+r.w-12;
+  const width=right-left;
+  const commandX=left+width*(BATTLE_COMMAND/100);
+
+  text("READY",left,r.y+5,{size:8,weight:800,color:"#829689"});
+  text("COMMAND",commandX,r.y+5,{size:8,weight:900,align:"center",color:"#e5ca78"});
+  text("ACTION",right,r.y+5,{size:8,weight:800,align:"right",color:"#829689"});
+
+  ctx.beginPath();ctx.moveTo(left,lineY);ctx.lineTo(right,lineY);
+  ctx.strokeStyle="#ffffff20";ctx.lineWidth=2;ctx.stroke();
+  ctx.beginPath();ctx.moveTo(commandX,top);ctx.lineTo(commandX,r.y+r.h-8);
+  ctx.strokeStyle="#e5ca7866";ctx.lineWidth=1;ctx.stroke();
+
+  const heavy=B.E.mode==="charging"&&B.E.action&&B.E.action.name==="Heavy Bloom";
+  const marker=(A,y,enemy=false)=>{
+    const x=left+width*(clamp(A.pos,0,100)/100);
+    ctx.beginPath();ctx.arc(x,y,12,0,Math.PI*2);
+    ctx.fillStyle=enemy?"#5b372c":"#325a3b";ctx.fill();
+    ctx.lineWidth=A.mode==="charging"?3:2;
+    ctx.strokeStyle=(heavy&&enemy)?"#e5ca78":A.mode==="charging"?"#e5ca78":enemy?"#c98768":"#a9db70";
+    ctx.stroke();
+    text(enemy?"✹":"🌿",x,y,{size:10,weight:900,align:"center",baseline:"middle",color:"#eef3df"});
+  };
+  marker(B.P,lineY-9,false);
+  marker(B.E,lineY+11,true);
+}
+
+function drawBattleCommand(id,r,label,hint,fill,action,enabled){
+  const hot=enabled&&state.pointer.down&&state.pressed===id&&inside(state.pointer,r);
+  fillRound(r,enabled?(hot?"#bce77f":fill):"#26332b",11);
+  strokeRound(r,enabled?(hot?"#efffc6":"#ffffff18"):"#ffffff0d",11,1);
+  const labelSize=fitText(label,r.w-16,{maxSize:12,minSize:9,weight:900});
+  const hintSize=fitText(hint,r.w-16,{maxSize:8.5,minSize:7,weight:650});
+  text(label,r.x+9,r.y+7,{size:labelSize,weight:900,color:enabled?(hot?"#102218":"#eef3df"):"#748077"});
+  text(hint,r.x+9,r.y+r.h-7,{size:hintSize,weight:650,baseline:"bottom",color:enabled?(hot?"#24452c":"#8fa394"):"#5c665f"});
+  if(enabled)registerHit(id,r,action);
+}
+
+function drawBattleInfo(r,B,u,interactive){
+  fillRound(r,"#0d1c14",20);
+  strokeRound(r,"#ffffff14",20,1);
+  const ip=clamp(3*u,10,15);
+  const inner={x:r.x+ip,y:r.y+ip,w:r.w-ip*2,h:r.h-ip*2};
+
+  const timelineH=clamp(13*u,58,72);
+  const timelineR={x:inner.x,y:inner.y,w:inner.w,h:timelineH};
+  drawBattleTimeline(timelineR,B,u);
+
+  const statusY=timelineR.y+timelineR.h+6;
+  const statusH=34,gap=6,half=(inner.w-gap)/2;
+  const ps={x:inner.x,y:statusY,w:half,h:statusH};
+  const es={x:inner.x+half+gap,y:statusY,w:half,h:statusH};
+  fillRound(ps,"#ffffff08",9);fillRound(es,"#ffffff08",9);
+
+  const pStatus=B.P.mode==="command"?"Choose":B.P.mode==="charging"?B.P.action.name+"…":"Advancing";
+  const eStatus=B.E.mode==="charging"?B.E.action.name+"…":"Advancing";
+  text("Creature Zero",ps.x+8,ps.y+5,{size:8,weight:700,color:"#829689"});
+  text(pStatus,ps.x+8,ps.y+18,{size:fitText(pStatus,ps.w-16,{maxSize:10,minSize:8,weight:850}),weight:850,color:"#eef3df"});
+  text("Bramblejaw",es.x+8,es.y+5,{size:8,weight:700,color:"#829689"});
+  text(eStatus,es.x+8,es.y+18,{size:fitText(eStatus,es.w-16,{maxSize:10,minSize:8,weight:850}),weight:850,color:"#eef3df"});
+
+  const logY=statusY+statusH+7;
+  const logH=clamp(lerp(14,25,state.W.layout)*u,72,92);
+  const logR={x:inner.x,y:logY,w:inner.w,h:logH};
+  fillRound(logR,"#07120d",11);
+  strokeRound(logR,"#ffffff10",11,1);
+
+  const titleSize=fitText(B.logTitle,logR.w-18,{maxSize:12,minSize:8.5,weight:900});
+  text(B.logTitle,logR.x+9,logR.y+8,{size:titleSize,weight:900,color:"#eef3df"});
+  const bodySize=clamp(2.1*u,8,10.5);
+  const lines=wrapText(B.logText,logR.w-18,{size:bodySize,weight:650});
+  lines.slice(0,4).forEach((line,i)=>text(line,logR.x+9,logR.y+27+i*bodySize*1.2,{
+    size:bodySize,weight:650,color:"#94a797"
+  }));
+
+  const actionTop=logR.y+logR.h+7;
+  const available=Math.max(42,inner.y+inner.h-actionTop);
+
+  if(B.ended){
+    drawButton("battle-return",{x:inner.x,y:inner.y+inner.h-44,w:inner.w,h:44},"Return to Mossglass",returnBattleToExpedition,{fill:"#496047",size:13});
+    return;
+  }
+
+  const canChoose=interactive&&B.P.mode==="command";
+  const cmds=[
+    ["quick","Quick Strike","5 dmg · fast · contact","#789b58"],
+    ["root","Root Bind","2 dmg · cancel · slow","#47754d"],
+    ["brace","Brace","reduce next hit · +1 HP","#3b5144"]
+  ];
+
+  if(state.W.layout<.5){
+    const bh=Math.min(42,(available-12)/3);
+    const start=inner.y+inner.h-(bh*3+12);
+    cmds.forEach((cmd,i)=>drawBattleCommand(
+      "cmd-"+cmd[0],{x:inner.x,y:start+i*(bh+6),w:inner.w,h:bh},
+      cmd[1],cmd[2],cmd[3],()=>chooseBattleAction(cmd[0]),canChoose
+    ));
+  }else{
+    const bw=(inner.w-12)/3;
+    const bh=Math.min(50,available);
+    const y=inner.y+inner.h-bh;
+    cmds.forEach((cmd,i)=>drawBattleCommand(
+      "cmd-"+cmd[0],{x:inner.x+i*(bw+6),y,w:bw,h:bh},
+      cmd[1],cmd[2],cmd[3],()=>chooseBattleAction(cmd[0]),canChoose
+    ));
+  }
+}
+
 function drawCarePanel(infoPanel,u,interactive){
   const S=state.creature;
   fillRound(infoPanel,"#0d1c14",20);
@@ -1204,18 +1640,22 @@ function draw(){
   const {w,h}=state.view;
   const W=state.W.layout;
   const now=performance.now();
-  const dt=Math.min(50,Math.max(0,now-state.lastFrame));
+  const dtMs=Math.min(50,Math.max(0,now-state.lastFrame));
   state.lastFrame=now;
 
-  const sceneStep=dt/720;
+  const sceneStep=dtMs/720;
   if(state.W.scene<state.sceneTarget)state.W.scene=Math.min(state.sceneTarget,state.W.scene+sceneStep);
   else if(state.W.scene>state.sceneTarget)state.W.scene=Math.max(state.sceneTarget,state.W.scene-sceneStep);
 
   const H=smoothstep(clamp(state.W.scene,0,1));
   const E=smoothstep(clamp(state.W.scene-1,0,1));
+  const B=smoothstep(clamp(state.W.scene-2,0,1));
   const creatureAlpha=1-H;
   const homeAlpha=H*(1-E);
-  const expeditionAlpha=E;
+  const expeditionAlpha=E*(1-B);
+  const battleAlpha=B;
+
+  if(state.W.scene>2.985&&state.sceneTarget===3)tickBattle(dtMs/1000);
 
   const u=Math.min(w,h)/100;
   const pad=clamp(3.5*u,12,22);
@@ -1240,7 +1680,12 @@ function draw(){
   }
   if(expeditionAlpha>.001){
     ctx.save();ctx.globalAlpha=expeditionAlpha;
-    text("MOS SGLASS HOLLOW".replace(" ",""),pad,pad,{size:titleSize,weight:900,color:"#eef3df"});
+    text("MOSSGLASS HOLLOW",pad,pad,{size:titleSize,weight:900,color:"#eef3df"});
+    ctx.restore();
+  }
+  if(battleAlpha>.001){
+    ctx.save();ctx.globalAlpha=battleAlpha;
+    text("FIRST BATTLE",pad,pad,{size:titleSize,weight:900,color:"#eef3df"});
     ctx.restore();
   }
 
@@ -1257,7 +1702,7 @@ function draw(){
     drawButton("to-home",navR,"🏡 Home",()=>goScene(1),{fill:"#365442",size:13});
   }else if(Math.abs(state.W.scene-1)<.015&&state.sceneTarget===1){
     drawButton("to-creature",navR,"🌿 Creature",()=>goScene(0),{fill:"#365442",size:13});
-  }else if(state.W.scene>1.985&&state.sceneTarget===2){
+  }else if(Math.abs(state.W.scene-2)<.015&&state.sceneTarget===2){
     drawButton("exp-home",navR,"🏡 Home",()=>returnFromExpedition(),{fill:"#365442",size:13});
   }
 
@@ -1271,9 +1716,12 @@ function draw(){
 
   const home=homeLayout(w,h,pad,contentY,contentH,W);
   const exp=expeditionLayout(w,h,pad,contentY,contentH,W);
+  const bat=battleLayout(w,h,pad,contentY,contentH,W);
 
   const creatureAtHome=mixRect(petCreature,home.patch,H);
-  const creaturePanel=mixRect(creatureAtHome,exp.companion,E);
+  const creatureAtExpedition=mixRect(creatureAtHome,exp.companion,E);
+  let creaturePanel=mixRect(creatureAtExpedition,bat.player,B);
+  if(B>.98&&state.battle)creaturePanel=battleActorPanel(creaturePanel,state.battle.P,false,now);
 
   fillRound(creaturePanel,"#10251a",20);
   strokeRound(creaturePanel,"#ffffff12",20,1);
@@ -1328,7 +1776,7 @@ function draw(){
     }
   }
 
-  if(E>.005){
+  if(E>.005&&expeditionAlpha>.001){
     const R=state.expedition||expeditionDefaults();
     const routePanel=mixRect(home.trail,exp.route,E);
     const infoOrigin={x:home.trail.x,y:home.trail.y,w:home.trail.w,h:home.trail.h};
@@ -1338,18 +1786,36 @@ function draw(){
     ctx.globalAlpha=expeditionAlpha;
     drawExpeditionRoute(routePanel,R);
 
-    // Route painting covers the traveling companion during the scene morph,
-    // so redraw the SAME Creature Zero above it instead of creating a copy.
     fillRound(creaturePanel,"#10251a",16);
     strokeRound(creaturePanel,"#ffffff12",16,1);
     drawCreature(creaturePanel,now);
 
-    drawExpeditionInfo(infoPanel,R,u,state.W.scene>1.985&&state.sceneTarget===2);
+    drawExpeditionInfo(infoPanel,R,u,Math.abs(state.W.scene-2)<.015&&state.sceneTarget===2);
 
     text("Companion",creaturePanel.x+creaturePanel.w/2,creaturePanel.y+creaturePanel.h-8,{
       size:fitText("Companion",creaturePanel.w-20,{maxSize:11,minSize:8,weight:800}),
       weight:800,align:"center",baseline:"bottom",color:"#839889"
     });
+    ctx.restore();
+  }
+
+  if(B>.005){
+    const Battle=state.battle||battleDefaults();
+    const arenaPanel=mixRect(exp.route,bat.arena,B);
+    const infoPanel=mixRect(exp.info,bat.info,B);
+    const enemyOrigin={x:exp.route.x+exp.route.w*.58,y:exp.route.y+exp.route.h*.36,w:20,h:20};
+    const enemyPanel=mixRect(enemyOrigin,bat.enemy,B);
+
+    ctx.save();
+    ctx.globalAlpha=battleAlpha;
+    drawBattleArena(arenaPanel,Battle,creaturePanel,enemyPanel,now);
+
+    // Arena paint covers the traveling creature, so draw the SAME Creature Zero above it.
+    fillRound(creaturePanel,"#10251a",15);
+    strokeRound(creaturePanel,"#ffffff12",15,1);
+    drawCreature(creaturePanel,now);
+
+    drawBattleInfo(infoPanel,Battle,u,state.W.scene>2.985&&state.sceneTarget===3);
     ctx.restore();
   }
 
@@ -1367,6 +1833,13 @@ const initialParams=new URLSearchParams(location.search);
 if(initialParams.get("scene")==="expedition"){
   state.W.scene=2;
   state.sceneTarget=2;
+  initialParams.delete("scene");
+  const clean=location.pathname+(initialParams.toString()?"?"+initialParams.toString():"");
+  history.replaceState(null,"",clean);
+}else if(initialParams.get("scene")==="battle"&&state.expedition&&state.expedition.battlePending){
+  state.battle=battleDefaults();
+  state.W.scene=3;
+  state.sceneTarget=3;
   initialParams.delete("scene");
   const clean=location.pathname+(initialParams.toString()?"?"+initialParams.toString():"");
   history.replaceState(null,"",clean);
