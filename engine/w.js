@@ -979,7 +979,7 @@ function drawLeaf(cx,cy,w,h,rot,color){
   ctx.restore();
 }
 
-function drawCreature(panel,now){
+function drawCreature(panel,now,opt={}){
   const S=state.creature;
   const st=stageFor(S.growth);
   const s=Math.min(panel.w,panel.h);
@@ -1040,8 +1040,10 @@ function drawCreature(panel,now){
   }
   ctx.restore();
 
-  text(st.name,panel.x+14,panel.y+12,{size:12,weight:850,color:"#dfe9d7"});
-  text(mood(),panel.x+panel.w-14,panel.y+12,{size:11,weight:750,align:"right",color:"#91a796"});
+  if(opt.labels!==false){
+    text(st.name,panel.x+14,panel.y+12,{size:12,weight:850,color:"#dfe9d7"});
+    text(mood(),panel.x+panel.w-14,panel.y+12,{size:11,weight:750,align:"right",color:"#91a796"});
+  }
 }
 
 function goScene(target){
@@ -1427,11 +1429,11 @@ function drawBramblejaw(panel,B,now){
   }
   ctx.restore();
 
-  text("Bramblejaw",p.x+p.w/2,p.y+p.h-27,{
+  text("Bramblejaw",p.x+p.w/2,p.y+p.h-40,{
     size:fitText("Bramblejaw",p.w-16,{maxSize:12,minSize:9,weight:900}),
     weight:900,align:"center",color:"#eef3df"
   });
-  text("Thorns · contact +1",p.x+p.w/2,p.y+p.h-12,{
+  text("Thorns · contact +1",p.x+p.w/2,p.y+p.h-25,{
     size:fitText("Thorns · contact +1",p.w-16,{maxSize:9,minSize:7,weight:750}),
     weight:750,align:"center",color:"#d9b28b"
   });
@@ -1449,7 +1451,14 @@ function drawBattleArena(r,B,playerPanel,enemyPanel,now){
   const player=battleActorPanel(playerPanel,B.P,false,now);
   const enemy=battleActorPanel(enemyPanel,B.E,true,now);
 
+  // Battle uses Creature Zero's same body renderer, without its Tamagotchi card chrome.
+  drawCreature(player,now,{labels:false});
   drawBramblejaw(enemyPanel,B,now);
+
+  text("Creature Zero",player.x+player.w/2,player.y+player.h-25,{
+    size:fitText("Creature Zero",player.w-16,{maxSize:11,minSize:8,weight:900}),
+    weight:900,align:"center",color:"#eef3df"
+  });
 
   const hpPad=10;
   drawBattleHp(
@@ -1720,12 +1729,16 @@ function draw(){
 
   const creatureAtHome=mixRect(petCreature,home.patch,H);
   const creatureAtExpedition=mixRect(creatureAtHome,exp.companion,E);
-  let creaturePanel=mixRect(creatureAtExpedition,bat.player,B);
-  if(B>.98&&state.battle)creaturePanel=battleActorPanel(creaturePanel,state.battle.P,false,now);
+  const creaturePanel=mixRect(creatureAtExpedition,bat.player,B);
 
-  fillRound(creaturePanel,"#10251a",20);
-  strokeRound(creaturePanel,"#ffffff12",20,1);
-  drawCreature(creaturePanel,now);
+  if(B<.999){
+    ctx.save();
+    ctx.globalAlpha=1-B;
+    fillRound(creaturePanel,"#10251a",20);
+    strokeRound(creaturePanel,"#ffffff12",20,1);
+    drawCreature(creaturePanel,now);
+    ctx.restore();
+  }
 
   const infoExit=W<.5
     ?{x:petInfo.x,y:h+pad,w:petInfo.w,h:petInfo.h}
@@ -1809,12 +1822,6 @@ function draw(){
     ctx.save();
     ctx.globalAlpha=battleAlpha;
     drawBattleArena(arenaPanel,Battle,creaturePanel,enemyPanel,now);
-
-    // Arena paint covers the traveling creature, so draw the SAME Creature Zero above it.
-    fillRound(creaturePanel,"#10251a",15);
-    strokeRound(creaturePanel,"#ffffff12",15,1);
-    drawCreature(creaturePanel,now);
-
     drawBattleInfo(infoPanel,Battle,u,state.W.scene>2.985&&state.sceneTarget===3);
     ctx.restore();
   }
