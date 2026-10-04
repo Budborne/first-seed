@@ -81,41 +81,45 @@ pointer-events:none}
 
 <script>
 (function(){
-  const KEY="budborne:home-v1", CREATURE="budborne:first-seed";
-  let S;try{S=JSON.parse(localStorage.getItem(KEY)||"{}")}catch(e){S={}}
-  S={hour:Number.isFinite(S.hour)?S.hour:8,day:S.day||1,seeds:Number.isFinite(S.seeds)?S.seeds:3,moist:Number.isFinite(S.moist)?S.moist:70,crops:Array.isArray(S.crops)?S.crops:[0,0,0],inventory:S.inventory||{wildSeed:0,resin:0,dewstone:0},...S};if(!S.inventory)S.inventory={wildSeed:0,resin:0,dewstone:0};
+  const KEY="budborne:home-v1",CREATURE="budborne:first-seed",HOUR=3600000;
   const $=id=>document.getElementById(id);
+  let S;try{S=JSON.parse(localStorage.getItem(KEY)||"{}")}catch(e){S={}}
+  const now=Date.now();
+  S={hour:Number.isFinite(S.hour)?S.hour:8,day:S.day||1,seeds:Number.isFinite(S.seeds)?S.seeds:3,moist:Number.isFinite(S.moist)?S.moist:70,crops:Array.isArray(S.crops)?S.crops:[0,0,0],inventory:S.inventory||{wildSeed:0,resin:0,dewstone:0},lastRealMs:S.lastRealMs||now,...S};
+  if(!S.inventory)S.inventory={wildSeed:0,resin:0,dewstone:0};
+
   const places={
-    house:{title:"Cottage",desc:"A small place to sleep, plan, and keep the weather off your head. Resting advances only your home timeline."},
-    garden:{title:"Garden",desc:"Three rough beds. Nothing fancy yet. Crops advance when home time advances instead of being simulated every second."},
-    creature:{title:"Creature Patch",desc:"Creature Zero's patch. Care still lives in the First Seed prototype for now."},
-    shed:{title:"Storehouse",desc:"Seeds, expedition finds, tools, and crafting materials will eventually live here."},
-    gate:{title:"Wild Trail",desc:"The edge of home. Expeditions will leave through here, return with discoveries, and advance home time by their duration."}
+    house:{title:"Cottage",desc:"A small place to sleep, plan, and keep the weather off your head. Resting advances the same local clock used by crops and Creature Zero."},
+    garden:{title:"Garden",desc:"Three rough beds. Crops advance when home time advances instead of being simulated every second."},
+    creature:{title:"Creature Patch",desc:"Creature Zero lives on this home's clock now. Expeditions, rest, and real time all reach the patch."},
+    shed:{title:"Storehouse",desc:"Seeds, expedition finds, tools, and crafting materials live here."},
+    gate:{title:"Wild Trail",desc:"Expeditions leave through here. Successful runs advance the home clock by their full duration."}
   };
   function save(){localStorage.setItem(KEY,JSON.stringify(S))}
-  function advance(hours){
+  function applyHours(hours){
     S.hour+=hours;S.moist=Math.max(0,S.moist-hours*2.5);
     while(S.hour>=24){S.hour-=24;S.day++}
-    S.crops=S.crops.map(v=>v?Math.min(3,v+hours/6):0);save();render(); 
+    S.crops=S.crops.map(v=>v?Math.min(3,v+hours/6):0);
   }
+  function syncReal(){
+    const n=Date.now(),elapsed=Math.max(0,Math.min(720,(n-S.lastRealMs)/HOUR));
+    if(elapsed>.01)applyHours(elapsed);
+    S.lastRealMs=n;save();
+  }
+  function advance(hours){syncReal();applyHours(hours);S.lastRealMs=Date.now();save();render()}
   function timeText(){
     let h=Math.floor(S.hour),m=Math.round((S.hour-h)*60);if(m===60){h++;m=0}
     let ap=h>=12?"PM":"AM",h12=h%12||12;return "Day "+S.day+" · "+h12+":"+String(m).padStart(2,"0")+" "+ap;
   }
   function cropEmoji(v){return !v?"":v<1.6?"🌱":v<2.7?"🌿":"🥕"}
   function creatureEmoji(){
-    try{
-      const C=JSON.parse(localStorage.getItem(CREATURE)||"{}"),g=Number(C.growth)||0;
-      return g>=300?"🌳":g>=140?"🌿":g>=20?"🌱":"🫘";
-    }catch(e){return "🌱"}
+    try{const C=JSON.parse(localStorage.getItem(CREATURE)||"{}"),g=Number(C.growth)||0;return g>=120?"🌳":g>=30?"🌿":g>=12?"🌱":"🫘"}catch(e){return "🫘"}
   }
   function render(){
     $("clock").textContent=timeText();$("moist").textContent=Math.round(S.moist)+"%";$("seeds").textContent=S.seeds;
     S.crops.forEach((v,i)=>$("crop"+i).textContent=cropEmoji(v));$("pet").textContent=creatureEmoji();save();
   }
-  function action(label,fn,cls=""){
-    const b=document.createElement("button");b.className="action "+cls;b.textContent=label;b.onclick=fn;return b;
-  }
+  function action(label,fn,cls=""){const b=document.createElement("button");b.className="action "+cls;b.textContent=label;b.onclick=fn;return b}
   function select(name){
     const p=places[name];$("title").textContent=p.title;$("desc").textContent=p.desc;const box=$("actions");box.replaceChildren();
     if(name==="house"){
@@ -128,25 +132,21 @@ pointer-events:none}
       }),action("Water beds",()=>{S.moist=Math.min(100,S.moist+30);advance(.15);select("garden")},"secondary"));
     }else if(name==="creature"){
       const a=document.createElement("a");a.className="linkbtn";a.href="./";a.textContent="Visit Creature Zero";
-      box.append(a,action("Watch quietly",()=>{$("desc").textContent="You sit beside the patch. Creature Zero is not impressed. Time passes anyway.";advance(.25)},"secondary"));
+      box.append(a,action("Watch quietly",()=>{$("desc").textContent="You sit beside the patch. Creature Zero is not impressed. Fifteen local minutes pass anyway.";advance(.25)},"secondary"));
     }else if(name==="shed"){
-      box.append(action("Check stores",()=>{
-        const I=S.inventory||{};
-        $("desc").textContent="Seeds: "+S.seeds+" · Amber Resin: "+(I.resin||0)+" · Dewstone: "+(I.dewstone||0)+".";
-      },"secondary"),action("Crafting bench",()=>{$("desc").textContent="Nothing to craft yet. The bench exists mostly because future-you insisted."},"muted"));
+      box.append(action("Check stores",()=>{const I=S.inventory||{};$("desc").textContent="Seeds: "+S.seeds+" · Amber Resin: "+(I.resin||0)+" · Dewstone: "+(I.dewstone||0)+"."},"secondary"),action("Crafting bench",()=>{$("desc").textContent="Nothing to craft yet. The bench exists mostly because future-you insisted."},"muted"));
     }else if(name==="gate"){
       const a=document.createElement("a");a.className="linkbtn";a.href="expedition.html";a.textContent="Enter Mossglass Hollow";
       box.append(a,action("Scout nearby · 2h",()=>{advance(2);$("desc").textContent="You follow the trail until the clearing disappears behind the trees, then turn back."},"secondary"));
     }
   }
+
+  syncReal();render();
   document.querySelectorAll("[data-place]").forEach(b=>b.addEventListener("click",()=>select(b.dataset.place)));
-  render();
   if(S.lastExpedition&&Date.now()-S.lastExpedition.at<120000){
-    const e=S.lastExpedition;
-    $("title").textContent=e.success?"Back from Mossglass Hollow":"Back from the trail";
+    const e=S.lastExpedition;$("title").textContent=e.success?"Back from Mossglass Hollow":"Back from the trail";
     $("desc").textContent=(e.success?"Expedition complete. ":"You returned early. ")+e.homeTime.toFixed(1)+" hours passed here at home while "+e.trailTime.toFixed(1)+" hours passed on the trail.";
-    const box=$("actions");box.replaceChildren();
-    const a=document.createElement("a");a.className="linkbtn";a.href="expedition.html";a.textContent="Go back out";
+    const box=$("actions");box.replaceChildren();const a=document.createElement("a");a.className="linkbtn";a.href="expedition.html";a.textContent="Go back out";
     box.append(a,action("Check the clearing",()=>select("creature"),"secondary"));
   }else select("creature");
 })();
