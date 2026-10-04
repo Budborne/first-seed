@@ -17,7 +17,7 @@ radial-gradient(ellipse at 50% 92%,#664c3155 0 38%,transparent 39%),
 radial-gradient(circle at 18% 22%,#264b30 0 10%,transparent 11%),
 radial-gradient(circle at 83% 27%,#2b5033 0 13%,transparent 14%),
 linear-gradient(#173522,#10291a)}
-.fighter{position:absolute;bottom:47px;width:135px;text-align:center;transition:transform .18s}.fighter.player{left:7%}.fighter.enemy{right:7%}.sprite{font-size:4rem;filter:drop-shadow(0 9px 6px #0007)}.name{margin-top:3px;font-weight:900;font-size:.82rem}.hp{height:9px;border-radius:999px;background:#ffffff12;overflow:hidden;margin-top:6px}.hp>i{display:block;height:100%;background:var(--leaf);transition:width .25s}.enemy .hp>i{background:var(--enemy)}
+.fighter{position:absolute;bottom:47px;width:135px;text-align:center;transition:transform .18s}.fighter.player{left:7%}.fighter.enemy{right:7%}.sprite{font-size:4rem;filter:drop-shadow(0 9px 6px #0007)}.name{margin-top:3px;font-weight:900;font-size:.82rem}.passive{margin-top:4px;font-size:.64rem;font-weight:850;color:#e4bc91}.hp{height:9px;border-radius:999px;background:#ffffff12;overflow:hidden;margin-top:6px}.hp>i{display:block;height:100%;background:var(--leaf);transition:width .25s}.enemy .hp>i{background:var(--enemy)}
 .hit{animation:hit .28s ease}.lunge{animation:lunge .28s ease}.enemy.lunge{animation:lungeEnemy .28s ease}
 @keyframes hit{50%{transform:translateX(-8px) rotate(-4deg);filter:brightness(1.5)}}@keyframes lunge{50%{transform:translateX(35px)}}@keyframes lungeEnemy{50%{transform:translateX(-35px)}}
 .timelineWrap{padding:3px 0}.timelineHead{display:flex;justify-content:space-between;color:var(--muted);font-size:.72rem;font-weight:800;margin-bottom:8px}.timeline{height:72px;position:relative;background:#07120d;border:1px solid var(--line);border-radius:16px;overflow:hidden}
@@ -46,6 +46,7 @@ linear-gradient(#173522,#10291a)}
     </div>
     <div class="fighter enemy" id="enemyFighter">
       <div class="sprite">🌵</div><div class="name">Bramblejaw</div>
+      <div class="passive">🌵 Thorns · contact attackers take 1</div>
       <div class="hp"><i id="enemyHpBar"></i></div>
     </div>
   </div>
@@ -102,9 +103,9 @@ linear-gradient(#173522,#10291a)}
   const E={name:"Bramblejaw",hp:24,maxHp:24,pos:9,speed:14,mode:"moving",action:null,shield:0,slow:1};
 
   const actions={
-    quick:{name:"Quick Strike",cast:.62,damage:5},
-    root:{name:"Root Bind",cast:1.18,damage:2},
-    brace:{name:"Brace",cast:.38,damage:0}
+    quick:{name:"Quick Strike",cast:.62,damage:5,contact:true},
+    root:{name:"Root Bind",cast:1.18,damage:2,contact:false},
+    brace:{name:"Brace",cast:.38,damage:0,contact:false}
   };
 
   function setLog(title,text){$("logTitle").textContent=title;$("logText").textContent=text}
@@ -146,14 +147,20 @@ linear-gradient(#173522,#10291a)}
       return;
     }
     E.hp=Math.max(0,E.hp-a.damage);animate("enemyFighter","hit");
+    let thorned=false;
+    if(a.contact){
+      P.hp=Math.max(0,P.hp-1);
+      animate("playerFighter","hit");
+      thorned=true;
+    }
     if(a.name==="Quick Strike"&&E.mode==="charging"){
       E.mode="moving";E.action=null;E.pos=Math.max(18,E.pos-31);
-      setLog("Interrupt!","Quick Strike lands before Bramblejaw can execute. Its action is broken and it tumbles backward on the timeline.");
+      setLog("Interrupt!", "Quick Strike breaks Bramblejaw's action and knocks it backward."+(thorned?" Thorns prick Creature Zero for 1 damage.":""));
     }else if(a.name==="Root Bind"){
       E.slow=.62;
-      if(E.mode==="charging"){E.mode="moving";E.action=null;E.pos=24;setLog("Bound and cancelled.","Roots catch Bramblejaw mid-preparation and drag it backward.");}
-      else{E.pos=Math.max(8,E.pos-18);setLog("Root Bind tightens.","Bramblejaw's next advance will be slower.");}
-    }else setLog(a.name+" lands.",a.damage+" damage.");
+      if(E.mode==="charging"){E.mode="moving";E.action=null;E.pos=24;setLog("Bound and cancelled.","Roots catch Bramblejaw mid-preparation and drag it backward. No contact, no thorn damage.");}
+      else{E.pos=Math.max(8,E.pos-18);setLog("Root Bind tightens.","Bramblejaw's next advance will be slower. The roots never touch its thorns.");}
+    }else setLog(a.name+" lands.",a.damage+" damage."+(thorned?" Thorns deal 1 back.":""));
     checkEnd();
   }
 
@@ -172,19 +179,30 @@ linear-gradient(#173522,#10291a)}
 
   function checkEnd(){
     render();
-    if(E.hp<=0)end(true);
-    else if(P.hp<=0)end(false);
+    if(E.hp<=0&&P.hp<=0)end("mutual");
+    else if(E.hp<=0)end("victory");
+    else if(P.hp<=0)end("defeat");
   }
-  function end(victory){
+  function end(outcome){
     ended=true;paused=true;commandButtons(false);
-    const result={victory:victory,trailTime:victory?.7:.45,loot:victory?{resin:1}:{},at:Date.now()};
+    const victory=outcome==="victory",mutual=outcome==="mutual";
+    const result={
+      victory:victory,
+      mutual:mutual,
+      trailTime:victory?.7:(mutual?.6:.45),
+      loot:(victory||mutual)?{resin:1}:{},
+      at:Date.now()
+    };
     sessionStorage.setItem(RESULT_KEY,JSON.stringify(result));
     $("result").classList.add("show");
-    $("resultTitle").textContent=victory?"Victory 🌿":"Defeat";
+    $("resultTitle").textContent=victory?"Victory 🌿":mutual?"Both down 🌵":"Defeat";
     $("resultText").textContent=victory
       ?"Creature Zero wins its first fight. Bramblejaw leaves behind a strip of Amber Resin. The expedition can continue."
-      :"Creature Zero is forced back. The expedition can continue, but the loss will cost vigor.";
-    setLog(victory?"Bramblejaw yields the trail.":"Creature Zero is knocked back.",victory?"The first combat test is complete.":"No death spiral. This is a prototype defeat.");
+      :mutual
+        ?"Creature Zero drops Bramblejaw, then immediately keels over from the thorns. The resin is still recovered, but the expedition loses vigor."
+        :"Creature Zero is forced back. The expedition can continue, but the loss will cost vigor.";
+    setLog(victory?"Bramblejaw yields the trail.":mutual?"A very prickly draw.":"Creature Zero is knocked back.",
+      victory?"The first combat test is complete.":mutual?"Both consequences count. Bramblejaw is down, and so is Creature Zero.":"No death spiral. This is a prototype defeat.");
   }
 
   function tick(now){
