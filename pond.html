@@ -27,9 +27,52 @@ const objects=[
  {type:"tree",x:3,y:0,z:0},
  {type:"tree",x:-3,y:1,z:0},
  {type:"rock",x:2,y:-1,z:0},
- {type:"rock",x:-2,y:2,z:0},
- {type:"bud",x:-2,y:0,z:0}
+ {type:"rock",x:-2,y:2,z:0}
 ];
+const bud={type:"bud",x:-2,y:0,z:0};
+let path=[],target=null,moveFrom=null,moveTo=null,moveT=0;
+const SPEED=2.5;
+const key=(x,y)=>x+","+y;
+function blocked(x,y){
+ const cell=cells.find(c=>c.x===x&&c.y===y);
+ if(!cell||cell.k==="water")return true;
+ return objects.some(o=>o.x===x&&o.y===y);
+}
+function route(sx,sy,tx,ty){
+ const start=key(sx,sy),goal=key(tx,ty),q=[[sx,sy]],came=new Map([[start,null]]);
+ const dirs=[[1,0],[-1,0],[0,1],[0,-1]];
+ while(q.length){
+  const [x,y]=q.shift(),k=key(x,y);
+  if(k===goal)break;
+  for(const [dx,dy] of dirs){
+   const nx=x+dx,ny=y+dy,nk=key(nx,ny);
+   if(came.has(nk)||blocked(nx,ny))continue;
+   came.set(nk,k);q.push([nx,ny]);
+  }
+ }
+ if(!came.has(goal))return [];
+ const out=[];let k=goal;
+ while(k!==start){const [x,y]=k.split(",").map(Number);out.push({x,y});k=came.get(k)}
+ return out.reverse();
+}
+function setDestination(x,y){
+ if(blocked(x,y))return;
+ const sx=Math.round(bud.x),sy=Math.round(bud.y);
+ path=route(sx,sy,x,y);target={x,y};
+ if(!moveTo)beginStep();
+}
+function beginStep(){
+ if(!path.length){moveFrom=moveTo=null;return}
+ moveFrom={x:bud.x,y:bud.y};moveTo=path.shift();moveT=0;
+}
+function updateMove(dt){
+ if(!moveTo)return;
+ moveT+=dt*SPEED;
+ const t=Math.min(1,moveT),e=t*t*(3-2*t);
+ bud.x=moveFrom.x+(moveTo.x-moveFrom.x)*e;
+ bud.y=moveFrom.y+(moveTo.y-moveFrom.y)*e;
+ if(t>=1){bud.x=moveTo.x;bud.y=moveTo.y;moveTo=null;beginStep()}
+}
 function resize(){
  D=Math.min(devicePixelRatio||1,2);W=innerWidth;H=innerHeight;
  canvas.width=Math.round(W*D);canvas.height=Math.round(H*D);ctx.setTransform(D,0,0,D,0,0);
@@ -67,23 +110,38 @@ function rock(o){
  const p=iso(o.x,o.y);shadow(p.x,p.y+4,TW*.16,TH*.11);
  poly([{x:p.x-18,y:p.y},{x:p.x-13,y:p.y-20},{x:p.x+4,y:p.y-27},{x:p.x+20,y:p.y-10},{x:p.x+15,y:p.y+3}],"#778078","#9ba49b");
 }
-function bud(o,t){
+function budDraw(o,t){
  const p=iso(o.x,o.y),bob=Math.sin(t*2.1)*2;shadow(p.x,p.y+5,TW*.12,TH*.08);
  ctx.fillStyle="#9ac65f";ctx.beginPath();ctx.ellipse(p.x,p.y-25+bob,16,22,0,0,Math.PI*2);ctx.fill();
  ctx.fillStyle="#d6e98c";ctx.beginPath();ctx.ellipse(p.x-5,p.y-30+bob,4,6,0,0,Math.PI*2);ctx.ellipse(p.x+5,p.y-30+bob,4,6,0,0,Math.PI*2);ctx.fill();
  ctx.strokeStyle="#638747";ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(p.x-4,p.y-45+bob);ctx.quadraticCurveTo(p.x-14,p.y-58,p.x-22,p.y-52);ctx.moveTo(p.x+4,p.y-45+bob);ctx.quadraticCurveTo(p.x+15,p.y-59,p.x+22,p.y-51);ctx.stroke();
 }
+let last=performance.now();
 function draw(now){
+ const dt=Math.min(.05,(now-last)/1000);last=now;updateMove(dt);
  const t=(now-t0)/1000;ctx.fillStyle="#0b1711";ctx.fillRect(0,0,W,H);
  const grad=ctx.createRadialGradient(W*.5,H*.45,20,W*.5,H*.45,Math.max(W,H)*.7);grad.addColorStop(0,"#1b3022");grad.addColorStop(1,"#08110c");ctx.fillStyle=grad;ctx.fillRect(0,0,W,H);
- ctx.fillStyle="#dbe8c8";ctx.font="800 17px system-ui";ctx.textAlign="center";ctx.fillText("POND GEOMETRY · 002",W*.5,34);
- ctx.fillStyle="#879985";ctx.font="600 12px system-ui";ctx.fillText("49 logical cells · beginning to feel like a place",W*.5,55);
+ ctx.fillStyle="#dbe8c8";ctx.font="800 17px system-ui";ctx.textAlign="center";ctx.fillText("POND GEOMETRY · 003",W*.5,34);
+ ctx.fillStyle="#879985";ctx.font="600 12px system-ui";ctx.fillText("tap grass · Creature Zero will find a route",W*.5,55);
  [...cells].sort((a,b)=>(a.x+a.y)-(b.x+b.y)).forEach(c=>tile(c,t));
- [...objects].sort((a,b)=>(a.x+a.y)-(b.x+b.y)).forEach(o=>o.type==="tree"?tree(o,t):o.type==="rock"?rock(o):bud(o,t));
+ const drawables=[...objects,bud].sort((a,b)=>(a.x+a.y)-(b.x+b.y));
+ drawables.forEach(o=>o.type==="tree"?tree(o,t):o.type==="rock"?rock(o):budDraw(o,t));
  const p=iso(.5,.5);ctx.fillStyle="#d6e98c";ctx.font="700 12px system-ui";ctx.fillText("future fishing spot",p.x,p.y+TH*1.1);
- ctx.fillStyle="#65796a";ctx.font="600 11px system-ui";ctx.fillText("same geometry · more world",W*.5,H-28);
+ ctx.fillStyle="#65796a";ctx.font="600 11px system-ui";ctx.fillText("tap → route → world coordinates → projection",W*.5,H-28);
  requestAnimationFrame(draw);
 }
+function pickCell(px,py){
+ let best=null,dist=Infinity;
+ for(const c of cells){
+  const p=iso(c.x,c.y),dx=Math.abs(px-p.x)/(TW*.5),dy=Math.abs(py-p.y)/(TH*.5),d=dx+dy;
+  if(d<=1&&d<dist){best=c;dist=d}
+ }
+ return best;
+}
+canvas.addEventListener("pointerdown",e=>{
+ const r=canvas.getBoundingClientRect(),c=pickCell(e.clientX-r.left,e.clientY-r.top);
+ if(c)setDestination(c.x,c.y);
+},{passive:true});
 requestAnimationFrame(draw);
 })();
 </script>
