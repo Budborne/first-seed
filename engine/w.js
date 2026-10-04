@@ -15,7 +15,10 @@ const STAGES=[
 
 const state={
   view:{w:0,h:0,dpr:1},
-  W:{layout:0},
+  W:{layout:0,scene:0},
+  sceneTarget:0,
+  lastFrame:performance.now(),
+  home:null,
   pointer:{x:0,y:0,down:false},
   buttons:[],
   pressed:null,
@@ -27,6 +30,7 @@ const state={
 
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const lerp=(a,b,t)=>a+(b-a)*t;
+const smoothstep=t=>t*t*(3-2*t);
 const mixRect=(a,b,t)=>({
   x:lerp(a.x,b.x,t),
   y:lerp(a.y,b.y,t),
@@ -128,6 +132,7 @@ function syncHomeClock(){
   if(elapsed>.01)applyHomeHours(H,elapsed);
   H.lastRealMs=now;
   localStorage.setItem(HOME_KEY,JSON.stringify(H));
+  state.home=H;
   state.worldNow=homeHours(H);
 }
 
@@ -429,50 +434,74 @@ function drawCreature(panel,now){
   text(mood(),panel.x+panel.w-14,panel.y+12,{size:11,weight:750,align:"right",color:"#91a796"});
 }
 
-function draw(){
-  const {w,h}=state.view;
+function goScene(target){
+  state.sceneTarget=target?1:0;
+  state.pressed=null;
+}
+
+function homeLayout(w,h,pad,contentY,contentH,W){
+  const area={x:pad,y:contentY,w:w-pad*2,h:contentH};
+
+  const portrait={
+    cottage:{x:area.x,y:area.y,w:area.w*.48,h:area.h*.22},
+    trail:{x:area.x+area.w*.52,y:area.y,w:area.w*.48,h:area.h*.22},
+    store:{x:area.x+area.w*.52,y:area.y+area.h*.25,w:area.w*.48,h:area.h*.20},
+    garden:{x:area.x,y:area.y+area.h*.48,w:area.w*.48,h:area.h*.52},
+    patch:{x:area.x+area.w*.52,y:area.y+area.h*.48,w:area.w*.48,h:area.h*.52}
+  };
+
+  const wide={
+    cottage:{x:area.x,y:area.y,w:area.w*.28,h:area.h*.42},
+    trail:{x:area.x+area.w*.56,y:area.y,w:area.w*.44,h:area.h*.34},
+    store:{x:area.x+area.w*.31,y:area.y+area.h*.18,w:area.w*.22,h:area.h*.45},
+    garden:{x:area.x,y:area.y+area.h*.46,w:area.w*.28,h:area.h*.54},
+    patch:{x:area.x+area.w*.56,y:area.y+area.h*.38,w:area.w*.44,h:area.h*.62}
+  };
+
+  return {
+    cottage:mixRect(portrait.cottage,wide.cottage,W),
+    trail:mixRect(portrait.trail,wide.trail,W),
+    store:mixRect(portrait.store,wide.store,W),
+    garden:mixRect(portrait.garden,wide.garden,W),
+    patch:mixRect(portrait.patch,wide.patch,W)
+  };
+}
+
+function drawHomeCard(r,title,subtitle,opt={}){
+  fillRound(r,opt.fill||"#10251a",18);
+  strokeRound(r,"#ffffff12",18,1);
+  const size=fitText(title,r.w-20,{maxSize:14,minSize:10,weight:880});
+  text(title,r.x+12,r.y+11,{size,weight:880,color:"#eef3df"});
+  if(subtitle){
+    const ss=fitText(subtitle,r.w-20,{maxSize:11,minSize:8,weight:650});
+    text(subtitle,r.x+12,r.y+13+size,{size:ss,weight:650,color:"#8fa394"});
+  }
+}
+
+function drawGardenBeds(r){
+  const top=r.y+r.h*.46;
+  const left=r.x+r.w*.12;
+  const bedW=r.w*.76;
+  const bedH=Math.max(5,r.h*.07);
+  for(let i=0;i<3;i++){
+    const b={x:left,y:top+i*(bedH+6),w:bedW,h:bedH};
+    fillRound(b,"#5b4127",4);
+    const crop=state.home&&state.home.crops?Number(state.home.crops[i])||0:0;
+    if(crop>0){
+      const count=Math.min(5,Math.max(1,Math.ceil(crop)));
+      for(let j=0;j<count;j++){
+        const x=b.x+(j+1)*b.w/(count+1);
+        ctx.beginPath();
+        ctx.arc(x,b.y+b.h/2,Math.max(2,b.h*.22),0,Math.PI*2);
+        ctx.fillStyle="#78b95d";
+        ctx.fill();
+      }
+    }
+  }
+}
+
+function drawCarePanel(infoPanel,u,interactive){
   const S=state.creature;
-  const W=state.W.layout;
-  const now=performance.now();
-  const u=Math.min(w,h)/100;
-  const pad=clamp(3.5*u,12,22);
-  const headerH=clamp(11*u,42,58);
-  const contentY=headerH+pad*.35;
-  const contentH=h-contentY-pad;
-
-  ctx.fillStyle="#09150f";
-  ctx.fillRect(0,0,w,h);
-  state.buttons=[];
-
-  const titleSize=clamp(4.1*u,15,23);
-  text("CREATURE ZERO",pad,pad,{size:titleSize,weight:900,color:"#eef3df"});
-  text(
-    "W "+W.toFixed(3),
-    w-pad,pad+2,
-    {size:clamp(2.6*u,10,13),weight:700,align:"right",color:"#73887a",family:"ui-monospace,SFMono-Regular,Menlo,monospace"}
-  );
-
-  const portraitCreature={
-    x:pad,y:contentY,w:w-pad*2,h:contentH*.43
-  };
-  const portraitInfo={
-    x:pad,y:contentY+contentH*.45,w:w-pad*2,h:contentH*.55
-  };
-  const wideGap=pad;
-  const wideW=(w-pad*3)/2;
-  const wideCreature={
-    x:pad,y:contentY,w:wideW,h:contentH
-  };
-  const wideInfo={
-    x:pad*2+wideW,y:contentY,w:wideW,h:contentH
-  };
-  const creaturePanel=mixRect(portraitCreature,wideCreature,W);
-  const infoPanel=mixRect(portraitInfo,wideInfo,W);
-
-  fillRound(creaturePanel,"#10251a",20);
-  strokeRound(creaturePanel,"#ffffff12",20,1);
-  drawCreature(creaturePanel,now);
-
   fillRound(infoPanel,"#0d1c14",20);
   strokeRound(infoPanel,"#ffffff12",20,1);
 
@@ -519,9 +548,125 @@ function draw(){
 
   const actionY=inner.y+inner.h-buttonH*2-buttonGap;
   const half=(inner.w-buttonGap)/2;
-  drawButton("water",{x:inner.x,y:actionY,w:half,h:buttonH},"💧 Water",()=>care("water"),{fill:"#41614c"});
-  drawButton("sun",{x:inner.x+half+buttonGap,y:actionY,w:half,h:buttonH},"☀️ Sun",()=>care("sun"),{fill:"#5a6140"});
-  drawButton("hangout",{x:inner.x,y:actionY+buttonH+buttonGap,w:inner.w,h:buttonH},"🌿 Spend time together",hangout,{fill:"#31503d"});
+
+  if(interactive){
+    drawButton("water",{x:inner.x,y:actionY,w:half,h:buttonH},"💧 Water",()=>care("water"),{fill:"#41614c"});
+    drawButton("sun",{x:inner.x+half+buttonGap,y:actionY,w:half,h:buttonH},"☀️ Sun",()=>care("sun"),{fill:"#5a6140"});
+    drawButton("hangout",{x:inner.x,y:actionY+buttonH+buttonGap,w:inner.w,h:buttonH},"🌿 Spend time together",hangout,{fill:"#31503d"});
+  }else{
+    fillRound({x:inner.x,y:actionY,w:half,h:buttonH},"#41614c",12);
+    fillRound({x:inner.x+half+buttonGap,y:actionY,w:half,h:buttonH},"#5a6140",12);
+    fillRound({x:inner.x,y:actionY+buttonH+buttonGap,w:inner.w,h:buttonH},"#31503d",12);
+  }
+}
+
+function draw(){
+  const {w,h}=state.view;
+  const W=state.W.layout;
+  const now=performance.now();
+  const dt=Math.min(50,Math.max(0,now-state.lastFrame));
+  state.lastFrame=now;
+
+  const sceneStep=dt/720;
+  if(state.W.scene<state.sceneTarget)state.W.scene=Math.min(state.sceneTarget,state.W.scene+sceneStep);
+  else if(state.W.scene>state.sceneTarget)state.W.scene=Math.max(state.sceneTarget,state.W.scene-sceneStep);
+
+  const T=smoothstep(state.W.scene);
+  const u=Math.min(w,h)/100;
+  const pad=clamp(3.5*u,12,22);
+  const headerH=clamp(13*u,52,68);
+  const contentY=headerH+pad*.2;
+  const contentH=h-contentY-pad;
+
+  ctx.fillStyle="#09150f";
+  ctx.fillRect(0,0,w,h);
+  state.buttons=[];
+
+  const titleSize=clamp(4.1*u,15,23);
+  ctx.save();
+  ctx.globalAlpha=1-T;
+  text("CREATURE ZERO",pad,pad,{size:titleSize,weight:900,color:"#eef3df"});
+  ctx.restore();
+
+  ctx.save();
+  ctx.globalAlpha=T;
+  text("HOME CLEARING",pad,pad,{size:titleSize,weight:900,color:"#eef3df"});
+  ctx.restore();
+
+  text(
+    "L "+W.toFixed(3)+" · S "+state.W.scene.toFixed(3),
+    pad,pad+titleSize+4,
+    {size:clamp(2.35*u,9,12),weight:700,color:"#73887a",family:"ui-monospace,SFMono-Regular,Menlo,monospace"}
+  );
+
+  const navW=clamp(24*u,88,118);
+  const navH=clamp(8.4*u,31,39);
+  const navR={x:w-pad-navW,y:pad,w:navW,h:navH};
+  if(state.W.scene<.015&&state.sceneTarget===0){
+    drawButton("to-home",navR,"🏡 Home",()=>goScene(1),{fill:"#365442",size:13});
+  }else if(state.W.scene>.985&&state.sceneTarget===1){
+    drawButton("to-creature",navR,"🌿 Creature",()=>goScene(0),{fill:"#365442",size:13});
+  }
+
+  const portraitCreature={x:pad,y:contentY,w:w-pad*2,h:contentH*.43};
+  const portraitInfo={x:pad,y:contentY+contentH*.45,w:w-pad*2,h:contentH*.55};
+  const wideW=(w-pad*3)/2;
+  const wideCreature={x:pad,y:contentY,w:wideW,h:contentH};
+  const wideInfo={x:pad*2+wideW,y:contentY,w:wideW,h:contentH};
+  const petCreature=mixRect(portraitCreature,wideCreature,W);
+  const petInfo=mixRect(portraitInfo,wideInfo,W);
+
+  const home=homeLayout(w,h,pad,contentY,contentH,W);
+  const creaturePanel=mixRect(petCreature,home.patch,T);
+
+  fillRound(creaturePanel,"#10251a",20);
+  strokeRound(creaturePanel,"#ffffff12",20,1);
+  drawCreature(creaturePanel,now);
+
+  const infoExit=W<.5
+    ?{x:petInfo.x,y:h+pad,w:petInfo.w,h:petInfo.h}
+    :{x:w+pad,y:petInfo.y,w:petInfo.w,h:petInfo.h};
+  const infoPanel=mixRect(petInfo,infoExit,T);
+
+  if(T<.995){
+    ctx.save();
+    ctx.globalAlpha=1-T;
+    drawCarePanel(infoPanel,u,state.W.scene<.015&&state.sceneTarget===0);
+    ctx.restore();
+  }
+
+  if(T>.005){
+    const H=state.home||{day:1,hour:8,seeds:0,moist:0,inventory:{}};
+    const origin={
+      x:home.patch.x+home.patch.w*.5-10,
+      y:home.patch.y+home.patch.h*.5-10,
+      w:20,h:20
+    };
+
+    ctx.save();
+    ctx.globalAlpha=T;
+
+    const cottage=mixRect(origin,home.cottage,T);
+    const trail=mixRect(origin,home.trail,T);
+    const store=mixRect(origin,home.store,T);
+    const garden=mixRect(origin,home.garden,T);
+
+    drawHomeCard(cottage,"Cottage","Day "+H.day+" · "+String(Math.floor(H.hour)).padStart(2,"0")+":00",{fill:"#17271d"});
+    drawHomeCard(trail,"Wild Trail","Mossglass Hollow",{fill:"#122a1d"});
+    drawHomeCard(store,"Storehouse","Seeds "+(H.seeds||0)+" · Resin "+((H.inventory&&H.inventory.resin)||0),{fill:"#17231c"});
+    drawHomeCard(garden,"Garden","Moisture "+Math.round(H.moist||0)+"%",{fill:"#13261a"});
+    drawGardenBeds(garden);
+
+    text("Creature Patch",creaturePanel.x+creaturePanel.w/2,creaturePanel.y+creaturePanel.h-10,{
+      size:fitText("Creature Patch",creaturePanel.w-24,{maxSize:12,minSize:9,weight:800}),
+      weight:800,
+      align:"center",
+      baseline:"bottom",
+      color:"#839889"
+    });
+
+    ctx.restore();
+  }
 
   requestAnimationFrame(draw);
 }
