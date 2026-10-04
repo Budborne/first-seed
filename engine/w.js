@@ -2029,18 +2029,9 @@ function draw(){
 
     ctx.save();
     ctx.globalAlpha=expeditionAlpha;
-    drawExpeditionRoute(routePanel,R);
-
-    fillRound(creaturePanel,"#10251a",16);
-    strokeRound(creaturePanel,"#ffffff12",16,1);
-    drawCreature(creaturePanel,now);
-
-    drawExpeditionInfo(infoPanel,R,u,Math.abs(state.W.scene-2)<.015&&state.sceneTarget===2);
-
-    text("Companion",creaturePanel.x+creaturePanel.w/2,creaturePanel.y+creaturePanel.h-8,{
-      size:fitText("Companion",creaturePanel.w-20,{maxSize:11,minSize:8,weight:800}),
-      weight:800,align:"center",baseline:"bottom",color:"#839889"
-    });
+    const expInteractive=Math.abs(state.W.scene-2)<.015&&state.sceneTarget===2;
+    drawMossglassWorld(routePanel,R,now,expInteractive);
+    drawExpeditionInfo(infoPanel,R,u,expInteractive);
     ctx.restore();
   }
 
