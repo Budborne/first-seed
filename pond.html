@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#0b1711">
+<title>Budborne · Pond Geometry</title>
+<style>
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#0b1711;touch-action:none;-webkit-user-select:none;user-select:none}
+canvas{display:block;width:100vw;height:100dvh}
+</style>
+</head>
+<body>
+<canvas id="pond" aria-label="Budborne isometric pond geometry test"></canvas>
+<script>
+(()=>{
+const canvas=document.getElementById("pond"),ctx=canvas.getContext("2d",{alpha:false});
+let W=0,H=0,D=1,TW=112,TH=56,OX=0,OY=0,t0=performance.now();
+const cells=[
+ {x:-1,y:-1,k:"grass"},{x:0,y:-1,k:"grass"},{x:1,y:-1,k:"grass"},
+ {x:-1,y:0,k:"grass"},{x:0,y:0,k:"water"},{x:1,y:0,k:"water"},
+ {x:-1,y:1,k:"grass"},{x:0,y:1,k:"water"},{x:1,y:1,k:"grass"}
+];
+const objects=[
+ {type:"tree",x:-1,y:-1,z:0},
+ {type:"rock",x:1,y:-1,z:0},
+ {type:"bud",x:-1,y:1,z:0}
+];
+function resize(){
+ D=Math.min(devicePixelRatio||1,2);W=innerWidth;H=innerHeight;
+ canvas.width=Math.round(W*D);canvas.height=Math.round(H*D);ctx.setTransform(D,0,0,D,0,0);
+ TW=Math.max(76,Math.min(124,W*.25));TH=TW*.5;OX=W*.5;OY=H*.39;
+}
+addEventListener("resize",resize);resize();
+function iso(x,y,z=0){return{x:OX+(x-y)*TW*.5,y:OY+(x+y)*TH*.5-z*TH}}
+function poly(points,fill,stroke){
+ ctx.beginPath();ctx.moveTo(points[0].x,points[0].y);for(let i=1;i<points.length;i++)ctx.lineTo(points[i].x,points[i].y);ctx.closePath();
+ ctx.fillStyle=fill;ctx.fill();if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=1.5;ctx.stroke()}
+}
+function tile(c,t){
+ const p=iso(c.x,c.y),a={x:p.x,y:p.y-TH*.5},b={x:p.x+TW*.5,y:p.y},d={x:p.x,y:p.y+TH*.5},e={x:p.x-TW*.5,y:p.y};
+ if(c.k==="water"){
+   poly([a,b,d,e],"#244f55","#477a72");
+   ctx.save();poly([a,b,d,e],"#244f55");ctx.clip();
+   ctx.strokeStyle="#8bbda6";ctx.globalAlpha=.28;ctx.lineWidth=2;
+   for(let i=-1;i<3;i++){const yy=p.y-TH*.18+i*TH*.18+Math.sin(t*1.5+i)*2;ctx.beginPath();ctx.moveTo(p.x-TW*.34,yy);ctx.quadraticCurveTo(p.x,yy+3,p.x+TW*.34,yy);ctx.stroke()}
+   ctx.restore();
+ }else{
+   poly([a,b,d,e],"#557044","#78915b");
+   ctx.fillStyle="#728753";for(let i=0;i<5;i++){const q=(i*37+c.x*19+c.y*13)%73/73;ctx.fillRect(p.x-TW*.32+q*TW*.62,p.y-TH*.16+((i*23)%31)/31*TH*.3,2,3)}
+ }
+}
+function shadow(x,y,rx,ry){ctx.beginPath();ctx.ellipse(x,y,rx,ry,0,0,Math.PI*2);ctx.fillStyle="#07100b66";ctx.fill()}
+function tree(o,t){
+ const p=iso(o.x,o.y);shadow(p.x,p.y+4,TW*.17,TH*.12);
+ ctx.fillStyle="#594a31";ctx.fillRect(p.x-5,p.y-62,10,65);
+ const sway=Math.sin(t*.7)*2;
+ for(const q of [[0,-82,27],[-20,-67,21],[20,-66,22],[0,-52,23]]){
+   ctx.beginPath();ctx.arc(p.x+q[0]+sway,p.y+q[1],q[2],0,Math.PI*2);ctx.fillStyle=q[1]<-70?"#63824c":"#496b3e";ctx.fill();
+ }
+}
+function rock(o){
+ const p=iso(o.x,o.y);shadow(p.x,p.y+4,TW*.16,TH*.11);
+ poly([{x:p.x-18,y:p.y},{x:p.x-13,y:p.y-20},{x:p.x+4,y:p.y-27},{x:p.x+20,y:p.y-10},{x:p.x+15,y:p.y+3}],"#778078","#9ba49b");
+}
+function bud(o,t){
+ const p=iso(o.x,o.y),bob=Math.sin(t*2.1)*2;shadow(p.x,p.y+5,TW*.12,TH*.08);
+ ctx.fillStyle="#9ac65f";ctx.beginPath();ctx.ellipse(p.x,p.y-25+bob,16,22,0,0,Math.PI*2);ctx.fill();
+ ctx.fillStyle="#d6e98c";ctx.beginPath();ctx.ellipse(p.x-5,p.y-30+bob,4,6,0,0,Math.PI*2);ctx.ellipse(p.x+5,p.y-30+bob,4,6,0,0,Math.PI*2);ctx.fill();
+ ctx.strokeStyle="#638747";ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(p.x-4,p.y-45+bob);ctx.quadraticCurveTo(p.x-14,p.y-58,p.x-22,p.y-52);ctx.moveTo(p.x+4,p.y-45+bob);ctx.quadraticCurveTo(p.x+15,p.y-59,p.x+22,p.y-51);ctx.stroke();
+}
+function draw(now){
+ const t=(now-t0)/1000;ctx.fillStyle="#0b1711";ctx.fillRect(0,0,W,H);
+ const grad=ctx.createRadialGradient(W*.5,H*.45,20,W*.5,H*.45,Math.max(W,H)*.7);grad.addColorStop(0,"#1b3022");grad.addColorStop(1,"#08110c");ctx.fillStyle=grad;ctx.fillRect(0,0,W,H);
+ ctx.fillStyle="#dbe8c8";ctx.font="800 17px system-ui";ctx.textAlign="center";ctx.fillText("POND GEOMETRY · 001",W*.5,34);
+ ctx.fillStyle="#879985";ctx.font="600 12px system-ui";ctx.fillText("9 logical cells · one tiny piece of Budborne",W*.5,55);
+ [...cells].sort((a,b)=>(a.x+a.y)-(b.x+b.y)).forEach(c=>tile(c,t));
+ [...objects].sort((a,b)=>(a.x+a.y)-(b.x+b.y)).forEach(o=>o.type==="tree"?tree(o,t):o.type==="rock"?rock(o):bud(o,t));
+ const p=iso(.5,.5);ctx.fillStyle="#d6e98c";ctx.font="700 12px system-ui";ctx.fillText("future fishing spot",p.x,p.y+TH*.62);
+ ctx.fillStyle="#65796a";ctx.font="600 11px system-ui";ctx.fillText("x/y world coordinates → one isometric projection",W*.5,H-28);
+ requestAnimationFrame(draw);
+}
+requestAnimationFrame(draw);
+})();
+</script>
+</body>
+</html>
