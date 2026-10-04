@@ -36,6 +36,29 @@ function fitText(str,maxWidth,opt={}){
   return clamp(maxSize*(maxWidth/measured),minSize,maxSize);
 }
 
+function wrapText(str,maxWidth,opt={}){
+  const size=opt.size||16;
+  const weight=opt.weight||600;
+  const family=opt.family||"system-ui,-apple-system,sans-serif";
+  ctx.font=weight+" "+size+"px "+family;
+
+  const words=String(str).trim().split(/\s+/);
+  const lines=[];
+  let line="";
+
+  for(const word of words){
+    const test=line?line+" "+word:word;
+    if(line&&ctx.measureText(test).width>maxWidth){
+      lines.push(line);
+      line=word;
+    }else{
+      line=test;
+    }
+  }
+  if(line)lines.push(line);
+  return lines;
+}
+
 function solveViewport(){
   const w=Math.max(1,window.innerWidth);
   const h=Math.max(1,window.innerHeight);
@@ -116,7 +139,7 @@ function draw(){
     weight:900
   });
 
-  text("BUDBORNE · W CANVAS 003",16,16,{
+  text("BUDBORNE · W CANVAS 004",16,16,{
     size:labelSize,weight:700
   });
 
@@ -139,6 +162,22 @@ function draw(){
     baseline:"middle",
     color:active?"#17301f":"#102218"
   });
+
+  const bodySize=clamp(3.2*u,11,16);
+  const lines=wrapText(
+    "The same sentence now respects a solved width without needing a DOM text box.",
+    r.w-24,
+    {size:bodySize,weight:650}
+  );
+  const lineHeight=bodySize*1.28;
+  const startY=r.y+r.h-18-(lines.length-1)*lineHeight;
+  lines.forEach((line,i)=>text(line,r.x+r.w/2,startY+i*lineHeight,{
+    size:bodySize,
+    weight:650,
+    align:"center",
+    baseline:"bottom",
+    color:"#24452c"
+  }));
 
   requestAnimationFrame(draw);
 }
