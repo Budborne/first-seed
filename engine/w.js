@@ -689,8 +689,8 @@ function battleDefaults(){
     result:null,
     logTitle:"Bramblejaw blocks the trail.",
     logText:"Creature Zero plants its root-feet. Neither side has committed yet.",
-    P:{name:"Creature Zero",hp:28,maxHp:28,pos:0,speed:18,mode:"moving",action:null,shield:0,slow:1,hitUntil:0,lungeUntil:0,x:-2,y:1,moveFrom:null,moveTo:null},
-    E:{name:"Bramblejaw",hp:24,maxHp:24,pos:9,speed:14,mode:"moving",action:null,shield:0,slow:1,hitUntil:0,lungeUntil:0,x:2,y:-1,moveFrom:null,moveTo:null}
+    P:{name:"Creature Zero",hp:28,maxHp:28,pos:0,speed:18,mode:"moving",action:null,shield:0,slow:1,hitUntil:0,lungeUntil:0,x:-2,y:1,moveFrom:null,moveTo:null,vx:0,vy:0,pursuit:false,motionDelay:0,plantUntil:0},
+    E:{name:"Bramblejaw",hp:24,maxHp:24,pos:9,speed:14,mode:"moving",action:null,shield:0,slow:1,hitUntil:0,lungeUntil:0,x:2,y:-1,moveFrom:null,moveTo:null,vx:0,vy:0,pursuit:false,motionDelay:0,plantUntil:0}
   };
 }
 
@@ -718,12 +718,11 @@ function battleEnemyChoose(){
     ?{name:"Heavy Bloom",cast:1.55,damage:7,interrupt:12}
     :{name:"Thorn Swipe",cast:.82,damage:4,interrupt:7};
   if(heavy){
-    B.E.moveFrom=null;B.E.moveTo=null;
+    stopActorMotion(B.E,false);
   }else{
-    const to=battleApproachPoint(B.E,B.P,1);
-    const d=battleDist(B.E,to);
-    B.E.action.cast=.50+d*.16;
-    startActorMove(B.E,to);
+    const d=Math.max(0,battleDist(B.E,B.P)-BATTLE_MELEE_RANGE*.82);
+    B.E.action.cast=.65+d*.25;
+    startActorPursuit(B.E);
   }
   B.E.mode="charging";
   B.E.pos=BATTLE_COMMAND;
@@ -746,14 +745,116 @@ function battleApproachPoint(from,to,stop=1){
   if(Math.abs(dx)>=Math.abs(dy))return battleClampPoint(to.x+(dx>=0?stop:-stop),to.y);
   return battleClampPoint(to.x,to.y+(dy>=0?stop:-stop));
 }
+function ensureBattleMotion(A){
+  if(!Number.isFinite(A.vx))A.vx=0;
+  if(!Number.isFinite(A.vy))A.vy=0;
+  if(!Number.isFinite(A.motionDelay))A.motionDelay=0;
+}
 function startActorMove(A,to){
-  A.moveFrom={x:A.x,y:A.y};
+  ensureBattleMotion(A);
+  A.moveFrom=null;
   A.moveTo=battleClampPoint(to.x,to.y);
+  A.pursuit=false;
+  A.motionDelay=.11;
+}
+function startActorPursuit(A){
+  ensureBattleMotion(A);
+  A.moveFrom=null;
+  A.moveTo=null;
+  A.pursuit=true;
+  A.motionDelay=.10;
+}
+function stopActorMotion(A,plant=true){
+  ensureBattleMotion(A);
+  A.vx=0;A.vy=0;
+  A.moveFrom=null;A.moveTo=null;A.pursuit=false;A.motionDelay=0;
+  if(plant)A.plantUntil=performance.now()+170;
 }
 function clearActorMove(A){
-  if(A.moveTo){A.x=A.moveTo.x;A.y=A.moveTo.y}
-  A.moveFrom=null;A.moveTo=null;
+  stopActorMotion(A,true);
 }
+function approachValue(v,target,maxDelta){
+  if(v<target)return Math.min(target,v+maxDelta);
+  if(v>target)return Math.max(target,v-maxDelta);
+  return target;
+}
+function battleActorHasPhysicalMove(A){
+  return !!(A&&A.mode==="charging"&&A.action&&(
+    A.action.name==="Move"||A.action.name==="Quick Strike"||A.action.name==="Thorn Swipe"
+  ));
+}
+function updateBattlePhysicalActor(A,target,dt,isEnemy){
+  ensureBattleMotion(A);
+
+  if(!battleActorHasPhysicalMove(A)){
+    const drag=Math.min(1,dt*12);
+    A.vx=lerp(A.vx,0,drag);A.vy=lerp(A.vy,0,drag);
+    return;
+  }
+
+  if(A.motionDelay>0){
+    A.motionDelay=Math.max(0,A.motionDelay-dt);
+    const drag=Math.min(1,dt*18);
+    A.vx=lerp(A.vx,0,drag);A.vy=lerp(A.vy,0,drag);
+    return;
+  }
+
+  let tx=A.x,ty=A.y,stop=0;
+  if(A.action.name==="Move"&&A.moveTo){
+    tx=A.moveTo.x;ty=A.moveTo.y;stop=.03;
+  }else if((A.action.name==="Quick Strike"||A.action.name==="Thorn Swipe")&&target){
+    tx=target.x;ty=target.y;stop=BATTLE_MELEE_RANGE*.78;
+  }else return;
+
+  const dx=tx-A.x,dy=ty-A.y,dist=Math.hypot(dx,dy)||.0001;
+  const remaining=Math.max(0,dist-stop);
+  const nx=dx/dist,ny=dy/dist;
+  const maxSpeed=isEnemy?3.25:4.25;
+  const accel=isEnemy?9.5:14;
+  const decel=isEnemy?12:18;
+  const desiredSpeed=remaining<=.02?0:Math.min(maxSpeed,Math.sqrt(2*decel*remaining));
+  const desiredVx=nx*desiredSpeed,desiredVy=ny*desiredSpeed;
+  A.vx=approachValue(A.vx,desiredVx,accel*dt);
+  A.vy=approachValue(A.vy,desiredVy,accel*dt);
+
+  A.x=clamp(A.x+A.vx*dt,-3,3);
+  A.y=clamp(A.y+A.vy*dt,-3,3);
+
+  if(remaining<=.035&&Math.hypot(A.vx,A.vy)<.42){
+    A.vx=0;A.vy=0;
+    if(A.action.name==="Move"){
+      A.x=clamp(tx,-3,3);A.y=clamp(ty,-3,3);
+      A.moveTo=null;
+      A.plantUntil=performance.now()+150;
+    }
+  }
+}
+function resolveBattlePersonalSpace(B){
+  const P=B.P,E=B.E;
+  const dx=E.x-P.x,dy=E.y-P.y,d=Math.hypot(dx,dy)||.0001;
+  const minSep=.82;
+  if(d>=minSep)return;
+  const nx=dx/d,ny=dy/d,push=minSep-d;
+  const pActive=battleActorHasPhysicalMove(P),eActive=battleActorHasPhysicalMove(E);
+
+  if(pActive&&eActive){
+    P.x-=nx*push*.5;P.y-=ny*push*.5;
+    E.x+=nx*push*.5;E.y+=ny*push*.5;
+  }else if(pActive){
+    P.x-=nx*push;P.y-=ny*push;
+  }else if(eActive){
+    E.x+=nx*push;E.y+=ny*push;
+  }
+
+  P.x=clamp(P.x,-3,3);P.y=clamp(P.y,-3,3);
+  E.x=clamp(E.x,-3,3);E.y=clamp(E.y,-3,3);
+
+  const pv=P.vx*nx+P.vy*ny;
+  if(pv>0){P.vx-=nx*pv;P.vy-=ny*pv}
+  const ev=E.vx*nx+E.vy*ny;
+  if(ev<0){E.vx-=nx*ev;E.vy-=ny*ev}
+}
+
 function chooseBattleAction(kind){
   const B=state.battle;
   if(!B||B.ended||B.P.mode!=="command")return;
@@ -768,12 +869,11 @@ function chooseBattleAction(kind){
 
   B.P.action={...BATTLE_ACTIONS[kind]};
   if(kind==="quick"){
-    const to=battleApproachPoint(B.P,B.E,1);
-    const d=battleDist(B.P,to);
-    B.P.action.cast=.38+d*.18;
-    startActorMove(B.P,to);
+    const d=Math.max(0,battleDist(B.P,B.E)-BATTLE_MELEE_RANGE*.82);
+    B.P.action.cast=.55+d*.27;
+    startActorPursuit(B.P);
   }else{
-    B.P.moveFrom=null;B.P.moveTo=null;
+    stopActorMotion(B.P,false);
   }
   B.P.mode="charging";
   B.paused=false;
@@ -784,11 +884,11 @@ function chooseBattleMoveTarget(x,y){
   if(!B||B.P.mode!=="targeting")return;
   const to=battleClampPoint(x,y);
   const d=Math.hypot(to.x-B.P.x,to.y-B.P.y);
-  B.P.action={...BATTLE_ACTIONS.move,cast:.28+d*.22};
+  B.P.action={...BATTLE_ACTIONS.move,cast:.35+d*.30};
   startActorMove(B.P,to);
   B.P.mode="charging";
   B.paused=false;
-  battleLog("Repositioning.","Creature Zero crosses the arena while both timelines keep moving.");
+  battleLog("Repositioning.","Creature Zero leans in, accelerates, then has to brake and plant. Both timelines keep moving.");
 }
 
 function executeBattlePlayer(){
@@ -834,7 +934,7 @@ function executeBattlePlayer(){
   if(a.name==="Quick Strike"&&E.mode==="charging"){
     E.mode="moving";
     E.action=null;
-    E.moveFrom=null;E.moveTo=null;
+    stopActorMotion(E,true);
     E.pos=Math.max(18,E.pos-31);
     battleLog("Interrupt!","Quick Strike breaks Bramblejaw's action and knocks its timeline backward."+(thorned?" Thorns prick Creature Zero for 1 damage.":""));
   }else if(a.name==="Root Bind"){
@@ -842,7 +942,7 @@ function executeBattlePlayer(){
     if(E.mode==="charging"){
       E.mode="moving";
       E.action=null;
-      E.moveFrom=null;E.moveTo=null;
+      stopActorMotion(E,true);
       E.pos=24;
       battleLog("Bound and cancelled.","Roots catch Bramblejaw mid-preparation and drag its timeline backward. No contact, no thorn damage.");
     }else{
@@ -937,12 +1037,6 @@ function advanceBattleActor(A,dt,isPlayer){
     }
   }else if(A.mode==="charging"){
     A.pos+=(BATTLE_EXECUTE-BATTLE_COMMAND)/A.action.cast*dt;
-    if(A.moveFrom&&A.moveTo){
-      const mt=clamp((A.pos-BATTLE_COMMAND)/(BATTLE_EXECUTE-BATTLE_COMMAND),0,1);
-      const e=smoothstep(mt);
-      A.x=lerp(A.moveFrom.x,A.moveTo.x,e);
-      A.y=lerp(A.moveFrom.y,A.moveTo.y,e);
-    }
     if(A.pos>=BATTLE_EXECUTE){
       A.pos=BATTLE_EXECUTE;
       if(isPlayer)executeBattlePlayer();
@@ -954,6 +1048,9 @@ function advanceBattleActor(A,dt,isPlayer){
 function tickBattle(dt){
   const B=state.battle;
   if(!B||B.ended||B.paused||stageFor(state.creature.growth).key!=="budborn")return;
+  updateBattlePhysicalActor(B.P,B.E,dt,false);
+  updateBattlePhysicalActor(B.E,B.P,dt,true);
+  resolveBattlePersonalSpace(B);
   advanceBattleActor(B.P,dt,true);
   advanceBattleActor(B.E,dt,false);
 }
@@ -968,16 +1065,26 @@ function returnBattleToExpedition(){
 }
 
 function battleActorPanel(panel,actor,isEnemy,now){
-  let dx=0;
+  let dx=0,dy=0;
+  ensureBattleMotion(actor);
+
+  // Body trails its world position slightly while accelerating, then settles on the stop.
+  dx+=clamp((actor.vy-actor.vx)*1.05,-4.5,4.5);
+  dy+=clamp((Math.abs(actor.vx)+Math.abs(actor.vy))*.42,0,2.4);
+
+  if(actor.plantUntil>now){
+    const p=1-(actor.plantUntil-now)/170;
+    dy+=Math.sin(clamp(p,0,1)*Math.PI)*3.2;
+  }
   if(actor.lungeUntil>now){
     const p=1-(actor.lungeUntil-now)/260;
-    dx=Math.sin(clamp(p,0,1)*Math.PI)*(isEnemy?-20:20);
+    dx+=Math.sin(clamp(p,0,1)*Math.PI)*(isEnemy?-11:11);
   }
   if(actor.hitUntil>now){
     const p=1-(actor.hitUntil-now)/280;
     dx+=Math.sin(p*Math.PI*5)*(isEnemy?5:-5);
   }
-  return {...panel,x:panel.x+dx};
+  return {...panel,x:panel.x+dx,y:panel.y+dy};
 }
 
 function hangout(){
